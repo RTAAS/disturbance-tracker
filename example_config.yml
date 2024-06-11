@@ -1,0 +1,50 @@
+##
+# Settings for Audio Pattern Ranger (APR)
+##
+# This file provides a description of each configuration option available
+# in this application, as well as the default value.
+#
+# APR will try to load a configuration file in the following order:
+# 1) apr -c, 2) env[APR_CONFIG], 3) ./config.yml, 4) /etc/apr/config.yml
+##
+
+# Minimum log level to be retained
+#loglevel: INFO
+
+# Directory used for processing data
+#workspace: ./_workspace
+
+
+##
+# Monitor-Only Options
+##
+
+# Older recordings than X minutes will be deleted on rotation
+#record_age: 1500
+
+# Length of each recording: (hh:mm:ss)
+#record_duration: 00:30:00
+record_duration: 00:01:30
+
+# Device used to capture 
+# Find With: ffmpeg -loglevel warning -sources alsa
+#record_mic: MUST_CONFIGURE
+record_mic: "hw:CARD=Generic_1,DEV=0"
+
+# Device used to capture audio
+# Use None to disable video capture.
+# Find With: v4l2-ctl --list-devices --all
+#record_cam: /dev/video0
+
+# List of parameters passed to ffmpeg.v4l2
+# Adjust this based on needs and device capabilities.
+#record_cam_options: ["-video_size", "1920x1080", "-framerate", "5"]
+
+# List of options used to add a timestamp to videos
+# Missing fonts will be ignored.
+#record_cam_timestamp: ["-vf", "drawtext=fontfile=/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf:text='%{localtime}':fontcolor=red@0.8:x=7:y=7"]
+
+# Quality of compression (slower==smaller)
+# CAUTION: Changing this will impact detection!
+# See: https://trac.ffmpeg.org/wiki/Encode/H.264#a2.Chooseapresetandtune
+#record_compression: medium

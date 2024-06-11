@@ -1,0 +1,38 @@
+[project]
+name = 'apr'
+version = '0.0.1'
+keywords = ['audio', 'monitor', 'machine-learning', 'bark-detector', 'logging']
+authors = [
+    {name='MTecknology', email='mtecknology@debian.org'},
+]
+description = 'Record an environment and use machine learning to identify disturbances'
+readme = {file = "README.rst", content-type = "text/x-rst"}
+license = {file = "LICENSE"}
+requires-python = '>=3.8'
+dependencies = [
+    'fasteners',
+    'yaml',
+]
+classifiers = [
+    'Programming Language :: Python :: 3',
+    'License :: OSI Approved :: GNU Affero General Public License v3',
+    'Development Status :: 3 - Alpha',
+    'Environment :: Console',
+    'Intended Audience :: End Users/Desktop',
+    'Intended Audience :: Developers',
+    'Operating System :: POSIX',
+    'Topic :: Home Automation',
+    'Topic :: Scientific/Engineering :: Artificial Intelligence',
+]
+
+[project.urls]
+Documentation = 'https://audio-pattern-ranger.github.io/apr'
+Repository = 'https://github.com/audio-pattern-ranger/apr'
+Issues = 'https://github.com/audio-pattern-ranger/apr/issues'
+
+[project.scripts]
+apr = 'apr'
+
+[tool.setuptools.packages.find]
+where = ['/']
+include = ['apr']

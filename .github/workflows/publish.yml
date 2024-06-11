@@ -1,0 +1,33 @@
+name: Publish Update
+
+on:
+  push:
+    branches:
+      - master
+    #tags:
+    #  - 'v*.*.*'
+
+jobs:
+
+  docs:
+    name: Publish Documentation
+    permissions:
+      contents: write
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: sudo apt-get -y install python3-sphinx python3-sphinx-rtd-theme
+
+      - name: Build Site
+        run: make -C docs html
+
+      - name: Deploy Site
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          publish_branch: gh-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/_build/html/
+          force_orphan: true

@@ -1,0 +1,15 @@
+# python
+*.py[cod]
+__pycache__/
+dist/
+
+# sphinx-doc
+docs/_build
+
+# workspace
+_workspace/
+config.yml
+
+# prevent accidental additions
+*.mkv
+*.ogg

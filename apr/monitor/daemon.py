@@ -14,8 +14,8 @@ import signal
 import subprocess
 import time
 
-import apr.core.config
-import apr.core.options
+import apr.config
+import apr.options
 import apr.monitor.signals
 
 
@@ -23,7 +23,7 @@ def main():
     '''
     Master control logic for monitor daemon.
     '''
-    workspace = pathlib.Path(apr.core.config.get('workspace'))
+    workspace = pathlib.Path(apr.config.get('workspace'))
     pidfile = workspace / 'monitor.pid'
     lock = fasteners.InterProcessLock(pidfile)
 
@@ -82,7 +82,7 @@ def recording_loop():
     '''
     Capture and process recordings until signalled to shut down.
     '''
-    incoming = pathlib.Path(apr.core.config.get('workspace')) / 'rotating'
+    incoming = pathlib.Path(apr.config.get('workspace')) / 'rotating'
     record_command = build_ffmpeg_command()
 
     # Ensure output directory exists
@@ -112,23 +112,23 @@ def build_ffmpeg_command():
             'ffmpeg', '-y', '-loglevel', 'error',
             '-nostdin', '-nostats']
 
-    if apr.core.config.get('record_cam'):
+    if apr.config.get('record_cam'):
         command.extend(['-f', 'v4l2'])
-        command.extend(apr.core.config.get('record_cam_options'))
+        command.extend(apr.config.get('record_cam_options'))
         command.extend([
             '-thread_queue_size', '1024',
-            '-i', apr.core.config.get('record_cam')])
+            '-i', apr.config.get('record_cam')])
 
     command.extend([
         '-f', 'alsa', '-thread_queue_size', '1024',
-        '-i', apr.core.config.get('record_mic')])
+        '-i', apr.config.get('record_mic')])
 
-    if apr.core.config.get('record_cam'):
-        command.extend(apr.core.config.get('record_cam_timestamp'))
+    if apr.config.get('record_cam'):
+        command.extend(apr.config.get('record_cam_timestamp'))
 
     command.extend([
-        '-preset', apr.core.config.get('record_compression'),
-        '-t', apr.core.config.get('record_duration')])
+        '-preset', apr.config.get('record_compression'),
+        '-t', apr.config.get('record_duration')])
 
     logging.debug('Constructed ffmpeg command: %s', ' '.join(command))
     return command

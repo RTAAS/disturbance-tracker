@@ -10,8 +10,8 @@ import signal
 import os
 import time
 
-import apr.core.config
-import apr.core.options
+import apr.config
+import apr.options
 
 # Global "stop value" that can be passed between processes
 SIGTERM = False
@@ -23,11 +23,11 @@ def read_signal():
     Returns the shutdown urgency (max signal) from command line using:
     0. Continue, 1. Wait for Stop, 2. Signal to Stop, 3. Stop Immediately
     '''
-    if apr.core.options.get('signal_halt'):
+    if apr.options.get('signal_halt'):
         return 3
-    elif apr.core.options.get('signal_shutdown'):
+    elif apr.options.get('signal_shutdown'):
         return 2
-    elif apr.core.options.get('signal_stop'):
+    elif apr.options.get('signal_stop'):
         return 1
     return 0
 

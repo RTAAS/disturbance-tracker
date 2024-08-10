@@ -10,6 +10,7 @@ import yaml
 DEFAULT_CONFIGURATION = {
     'loglevel': 'INFO',
     'workspace': './_workspace',  # Distro: '/var/cache/apr',
+    # 'models': MUST_CONFIGURE,
     # Monitor
     'record_age': '1500',
     'record_duration': '00:30:00',
@@ -17,7 +18,7 @@ DEFAULT_CONFIGURATION = {
     'record_cam': '/dev/video0',
     'record_cam_options': ['-video_size', '1920x1080', '-framerate', '5'],
     'record_cam_timestamp': [
-        '-vf', 'drawtext=fontfile=/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf:text="%{localtime}":fontcolor=red@0.8:x=7:y=7'],  # noqa:E501
+        '-vf', 'drawtext=fontfile=/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf:text="%{localtime}":fontcolor=red@0.9:x=7:y=7:fontsize=72'],  # noqa:E501
     'record_compression': 'medium',
     }
 
@@ -50,6 +51,10 @@ def load_configuration():
         config_values = yaml.safe_load(fh)
         if config_values:
             loaded_configuration.update(config_values)
+
+    # Put 'nomatch' at the beginning of all model lists
+    loaded_configuration['models'] = \
+        ['nomatch'] + loaded_configuration['models']
 
     # Configure logging
     log = logging.getLogger()

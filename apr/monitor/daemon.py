@@ -128,6 +128,7 @@ def build_ffmpeg_command():
 
     command.extend([
         '-preset', apr.config.get('record_compression'),
+        '-c:v', 'libx264', '-c:a', 'pcm_s16le',
         '-t', apr.config.get('record_duration')])
 
     logging.debug('Constructed ffmpeg command: %s', ' '.join(command))

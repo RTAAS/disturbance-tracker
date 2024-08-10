@@ -14,6 +14,10 @@
 # Directory used for processing data
 #workspace: ./_workspace
 
+# List of bucket names for ML models
+# Example: [weirdnoise, poodle]
+#models: MUST_CONFIGURE
+
 
 ##
 # Monitor-Only Options
@@ -28,8 +32,8 @@ record_duration: 00:01:30
 
 # Device used to capture 
 # Find With: ffmpeg -loglevel warning -sources alsa
+# Example: "hw:CARD=Generic_1,DEV=0"
 #record_mic: MUST_CONFIGURE
-record_mic: "hw:CARD=Generic_1,DEV=0"
 
 # Device used to capture audio
 # Use None to disable video capture.
@@ -42,7 +46,7 @@ record_mic: "hw:CARD=Generic_1,DEV=0"
 
 # List of options used to add a timestamp to videos
 # Missing fonts will be ignored.
-#record_cam_timestamp: ["-vf", "drawtext=fontfile=/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf:text='%{localtime}':fontcolor=red@0.8:x=7:y=7"]
+#record_cam_timestamp: ["-vf", "drawtext=fontfile=/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf:text='%{localtime}':fontcolor=red@0.9:x=7:y=7:fontsize=72"]
 
 # Quality of compression (slower==smaller)
 # CAUTION: Changing this will impact detection!

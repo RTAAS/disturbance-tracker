@@ -1,0 +1,15 @@
+fasteners
+tk
+pyttk
+pydub
+imagetk
+MoviePy
+  torch
+  torchaudio
+  matplotlib
+  opencv-python
+  tqdm
+  librosa
+PyYAML
+# recommended
+simpleaudio

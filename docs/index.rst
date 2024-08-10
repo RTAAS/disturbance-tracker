@@ -20,6 +20,10 @@ in an environment, using machine learning models to detect and log specific
 nuisances, such as barking or car alarms. These models are trained on
 collected data to automate logging of detected disturbances.
 
+Rather than using large complex solutions that make use of giant sample data,
+APR uses local recordings in order to identify the exact disturbance. This means
+that even an old laptop is plenty to put this project into action.
+
 .. _why:
 
 Background
@@ -40,19 +44,20 @@ classify specific disturbances in the local area.
 How It Works
 ------------
 
-  1. Use the Monitor to collect some sample recordings
-  2. Dissect these recordings and extract individual noises (i.e. barks)
-  3. Use this data to (re-)train a machine learning model
-  4. Verify detection using original source clip
-  5. Use the Monitor to maintain continuous loop of recordings
-  6. Monitoring will scan completed recordings for trained noises
-  7. Use provided 'at' templates to auto-retain source data
+  1. Set up recorder
+  2. Collect some initial recordings
+  3. Extract individual noises
+  4. Train a model
+  5. Detect noises in collected recordings
+  6. Manually review the generated report
+  7. Refine model with additional training
 
 .. _getting-started:
 
 Getting Started
 ---------------
 
+  0. Hardware
   1. :ref:`Install APR <installation>`
   2. :ref:`Configure <configuration>`
   3. :ref:`Basic Usage <usage>`

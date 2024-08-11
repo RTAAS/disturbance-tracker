@@ -5,6 +5,7 @@
    :includehidden:
 
    About APR <self>
+   Hardware <intro/hardware>
    Installation <intro/install>
    Configuration <intro/configure>
    How to Use <intro/usage>
@@ -57,7 +58,7 @@ How It Works
 Getting Started
 ---------------
 
-  0. Hardware
+  0. :ref:`Hardware <hardware>`
   1. :ref:`Install APR <installation>`
   2. :ref:`Configure <configuration>`
   3. :ref:`Basic Usage <usage>`

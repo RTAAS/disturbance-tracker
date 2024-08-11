@@ -13,7 +13,7 @@ Inspect ffmpeg
 With ``loglevel`` set to ``DEBUG`` in ``config.yml``, the constructed ffmpeg
 will be logged, prefixed with: ``Constructed ffmpeg command``:
 
-  ::
+.. code-block:: sh
 
     echo 'loglevel: DEBUG' >>config.yml
     python3 -m apr -a monitor
@@ -29,6 +29,6 @@ When threading is not a concern, pudb is the absolute best python debugger.
 
 Replace ``python3`` with ``pudb3`` to use:
 
-  ::
+.. code-block:: sh
 
     pudb3 -m apr -a monitor

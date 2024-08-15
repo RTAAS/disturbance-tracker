@@ -15,6 +15,7 @@
 #workspace: _workspace
 
 # List of bucket names for ML models
+# NOTE: At this time, only one model is supported
 # Example: [weirdnoise, poodle]
 #models: MUST_CONFIGURE
 
@@ -45,7 +46,7 @@
 
 # List of options used to add a timestamp to videos
 # Missing fonts will be ignored.
-#record_cam_timestamp: ["-vf", "drawtext=fontfile=/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf:text='%{localtime}':fontcolor=red@0.9:x=7:y=7:fontsize=72"]
+#record_cam_timestamp: ["-vf", "drawtext=fontfile=/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf:text=%{localtime}:fontcolor=red@0.9:x=7:y=7:fontsize=72"]
 
 # Quality of compression (slower==smaller)
 # CAUTION: Changing this will impact detection!
@@ -58,4 +59,13 @@
 ##
 
 # Minimum accuracy (%) before training will finish
-#target_accuracy: 85
+#target_accuracy: 95
+
+# Values closer to 1 increase variation between model generations
+# Consider 0.01 for overall accuracy <=50, or 0.0001 for >=90%
+#learning_rate: 0.001
+
+# Adjust momentum in tandem with the learning rate. Typically 0.5 to 0.9.
+# Increase momentum slightly if increased learning rate produces instability.
+# Decrease if training repeatedly times out from producing identical worse accuracy.
+#momentum: 0.8

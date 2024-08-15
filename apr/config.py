@@ -18,9 +18,12 @@ DEFAULT_CONFIGURATION = {
     'record_cam': '/dev/video0',
     'record_cam_options': ['-video_size', '1920x1080', '-framerate', '5'],
     'record_cam_timestamp': [
-        '-vf', 'drawtext=fontfile=/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf:text="%{localtime}":fontcolor=red@0.9:x=7:y=7:fontsize=72'],  # noqa:E501
+        '-vf', 'drawtext=fontfile=/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf:text=%{localtime}:fontcolor=red@0.9:x=7:y=7:fontsize=72'],  # noqa:E501
     'record_compression': 'medium',
-    'target_accuracy': 85,
+    # Training
+    'target_accuracy': 95,
+    'learning_rate': 0.001,
+    'momentum': 0.9,
     }
 
 # Storage for loaded configuration

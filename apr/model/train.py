@@ -32,8 +32,8 @@ class AudioClassifier:
 
         # Tuning options
         self.batch_size = 1
-        self.momentum = 0.9
-        self.learning_rate = 0.001
+        self.momentum = apr.config.get('momentum')
+        self.learning_rate = apr.config.get('learning_rate')
         self.target_accuracy = apr.config.get('target_accuracy')
 
         # Models (search labels)

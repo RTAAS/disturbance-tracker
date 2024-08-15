@@ -13,17 +13,14 @@ import torchaudio
 # APR
 import apr.config
 
-# Convenient aliases
-from torch import nn
-import torch.nn.functional as F
 
-
-class M5(nn.Module):
+class M5(torch.nn.Module):
     '''
     Convolutional neural network with multiple convolutional and pooling layers
     '''
     def __init__(self, n_input=1, n_output=2, stride=16, n_channel=16):
         super().__init__()
+        nn = torch.nn
         self.conv1 = nn.Conv1d(n_input, n_channel, kernel_size=49, stride=16)
         self.bn1 = nn.BatchNorm1d(n_channel)
         self.pool1 = nn.MaxPool1d(4)
@@ -41,6 +38,7 @@ class M5(nn.Module):
         self.fc1 = nn.Linear(1 * n_channel, n_output)
 
     def forward(self, x):
+        F = torch.nn.functional
         x = self.conv1(x)
         x = F.relu(self.bn1(x))
         x = self.pool1(x)

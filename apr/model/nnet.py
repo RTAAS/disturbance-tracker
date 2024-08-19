@@ -35,6 +35,7 @@ class M5(torch.nn.Module):
         self.pool4 = nn.MaxPool1d(2)
         self.conv5 = nn.Conv1d(2 * n_channel, 1 * n_channel, kernel_size=3)
         self.bn5 = nn.BatchNorm1d(1 * n_channel)
+        self.dropout = nn.Dropout(apr.config.get('dropout'))
         self.fc1 = nn.Linear(1 * n_channel, n_output)
 
     def forward(self, x):
@@ -55,6 +56,7 @@ class M5(torch.nn.Module):
         x = F.relu(self.bn5(x))
         x = F.avg_pool1d(x, x.shape[-1])
         x = x.permute(0, 2, 1)
+        x = self.dropout(x)  # Apply dropout
         x = self.fc1(x)
         return x
 

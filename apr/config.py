@@ -24,6 +24,7 @@ DEFAULT_CONFIGURATION = {
     'target_accuracy': 95,
     'learning_rate': 0.001,
     'momentum': 0.9,
+    'dropout': 0.2,
     }
 
 # Storage for loaded configuration

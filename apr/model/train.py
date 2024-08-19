@@ -134,7 +134,7 @@ class AudioClassifier:
             iteration += 1
 
             # Train a new model
-            logging.info(f'Training iteration {iteration}')
+            logging.debug(f'Training iteration {iteration}')
             self.train_once()
 
             # Check accuracy of new model
@@ -162,9 +162,9 @@ class AudioClassifier:
                 last_accuracy[1] += 1
 
                 # Attempt to get different results with modified learning rate
-                if last_accuracy[1] in [5, 10, 15]:
+                if last_accuracy[1] % 3 == 0:
                     logging.warning(
-                            'No accuracy change for 5 rounds; adding entropy')
+                            'No accuracy change for 3 rounds; bumping entropy')
                     # Randomly adjust learning rate
                     self.learn_rate *= (1 + (torch.rand(1).item() - 0.5) * 0.1)
                     # Update optimizer with the new learning rate
@@ -172,9 +172,9 @@ class AudioClassifier:
                         param_group['lr'] = self.learn_rate
 
                 # Give up if entropy bump produced no changes
-                if last_accuracy[1] >= 20:
+                if last_accuracy[1] >= 10:
                     logging.critical(
-                            'No accuracy change for 20 rounds; stopping')
+                            'No accuracy change for 10 rounds; stopping')
                     # Exit loop (starting fresh with the same model is best)
                     break
 

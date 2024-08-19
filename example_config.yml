@@ -68,3 +68,7 @@
 # Increase momentum slightly if increased learning rate produces instability.
 # Decrease if training repeatedly times out from producing identical worse accuracy.
 #momentum: 0.8
+
+# Adjust how many nodes are randomly removed from every iteration
+# This helps to prevent overfitting from using a small-catered dataset.
+#dropout: 0.2

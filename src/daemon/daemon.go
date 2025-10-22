@@ -9,6 +9,7 @@ import (
 	// DTrack
 	. "dtrack/common"
 	"dtrack/state"
+	"dtrack/ffmpeg"
 	// Standard
 	"os"
 	"os/signal"
@@ -44,9 +45,18 @@ func Run() {
 		go Pipe2DevNull(wav_stream)
 	}
 
-	// Start main recording loop that sends data to scanners
+	// Prepare full ffmpeg command
+	record_args := ffmpeg.Recorder_Arguments()
+	save_path := state.Runtime.Workspace + "/recordings/"
+
+	// Start main recording loop that sends data to scanners (and mkv recordings)
 	for !stop_recording {
-		run_ffmpeg(daemon_stream)
+		mkv := save_path + time.Now().Format(ffmpeg.SaveName)
+
+		Debug("New ffmpeg process, saving to: %s", mkv)
+		args := append(record_args, mkv)
+		ffmpeg.ReadStdin(args, daemon_stream)
+
 		// Pause to prevent thrashing of physical devices
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -102,7 +112,7 @@ func stream_to_segment(stream *io.PipeReader, segments chan<- audio_segment) {
 	// Start main conversion loop
 	for {
 		// Allocate a buffer for the audio segment
-		segment_data := make([]byte, BytesPerSecond)
+		segment_data := make([]byte, ffmpeg.BytesPerSecond)
 		
 		// Block until segment_data is full
 		_, err := io.ReadFull(stream, segment_data)

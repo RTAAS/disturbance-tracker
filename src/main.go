@@ -28,7 +28,7 @@ func main() {
 	action_map := map[string]func() {
 		"monitor": daemon.Run,
 		"record":  daemon.Run, // Alias
-		"review":  review.Start,
+		"review":  review.Launch,
 		"train":   model.Train,
 	}
 	action_map[*app_action]()

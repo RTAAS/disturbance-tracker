@@ -1,4 +1,4 @@
-package daemon
+package ffmpeg
 
 import (
 	// DTrack
@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -19,31 +18,20 @@ import (
 const BytesPerSecond int = 96000
 
 // MKV Filename:  YYYY-MM-DD_HHmmss
-const mkv_name = "2006-01-02_150405.mkv"
+const SaveName = "2006-01-02_150405.mkv"
 
-// Maintain copy of accumulated arguments
-var session_arguments []string
-var build_ffargs sync.Once
-
-// Run ffmpeg command, saving A/V to MKV and Audio-only to Stream
-func run_ffmpeg(stdout *io.PipeWriter) {
-	// defer stdout.Close(Do not close stream)
-	// Build ffmpeg command
-	build_ffargs.Do(func() {
-		session_arguments = ffmpeg_arguments()
-	})
-	args := session_arguments
-	mkv := state.Runtime.Workspace + "/recordings/" + time.Now().Format(mkv_name)
-	args = append(args, mkv)
-	ffmpeg := exec.Command("ffmpeg", args...)
-	ffmpeg.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
+// Run ffmpeg command, returning stdout to IO stream
+func ReadStdin(arguments []string, stdout *io.PipeWriter) {
+	ffmpeg := exec.Command("ffmpeg", arguments...)
 	ffmpeg.Stderr = os.Stderr
 	ffmpeg.Stdout = stdout
 
+	// Use separate process group to avoid SIGTERM collisions
+	ffmpeg.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+
 	// Start ffmpeg process
-	Debug("New ffmpeg process, saving to: %s", mkv)
 	if ffmpeg.Start() != nil {
 		Die("Failed to intialize ffmpeg")
 	}
@@ -54,13 +42,13 @@ func run_ffmpeg(stdout *io.PipeWriter) {
 	}
 }
 
-// Return list of arguments for ffmpeg command using the pattern:
+// Return list of arguments for ffmpeg that saves A/V to MKV and Audio to Stream.
 // ffmpeg [basic-options] \
 //   [audio-options] [audio-device] \
 //   [video-options] [video-device] \
 //   [output-wav] [to-stdout] \
 //   [output-wav&vid] [to-mkv] [MISSING:filename]
-func ffmpeg_arguments() []string {
+func Recorder_Arguments() []string {
 	// 5+2+_+2+2+_+2+11+_+14 = 38 (+vars)
 	arg_count := 38 +
 		len(state.Runtime.Record_Audio_Options) +
@@ -100,6 +88,6 @@ func ffmpeg_arguments() []string {
 		"-ar", "48000", "-ac", "1", "-c:v", "libx264", "-preset",
 		state.Runtime.Record_Compression)
 
-	Debug("Compiled ffmpeg command: %s", args)
+	Debug("Compiled recorder arguments: %s", args)
 	return args
 }

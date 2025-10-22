@@ -1,8 +1,15 @@
+//##
+// DTrack Package: GUI Review
+//
+// Splits audio (+video optional) files into 2-second clips and provides a
+// GUI tool that moves tagged audio clips into special directories, for traning.
+//##
 package review
 
 import (
 	// 3rd-Party
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
@@ -11,11 +18,29 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
+// Collection of all audio and clips from an mkv file
+//TODO
+
 // List of audio segments available in loaded recording
 var Current_Segments binding.StringList = binding.NewStringList()
 
 // Image currently displayed in preview pane
 var Current_Image *canvas.Image = canvas.NewImageFromImage(nil)
+
+// Primary post-bootstrap entry point
+func Launch() {
+	application := app.NewWithID("DTrack")
+	root_window := application.NewWindow("DTrack Review")
+	root_window.Resize(fyne.NewSize(1024, 768))
+	root_window.SetContent(review_window())
+	Current_Status.Set("Select a video to begin review ...")
+	root_window.ShowAndRun()
+}
+
+// Returns the base object for a root window
+func get_window(root int) fyne.Window {
+	return fyne.CurrentApp().Driver().AllWindows()[root]
+}
 
 // Main structure of review window
 func review_window() fyne.CanvasObject {
@@ -25,7 +50,7 @@ func review_window() fyne.CanvasObject {
 		top, middle, bottom)
 }
 
-// Return the primary review container
+// Main review container (middle row)
 func segment_viewer() fyne.CanvasObject {
 	// List of (1-second) video segments
 	segment_text := widget.NewLabel("[ Step #2 ]\nSelect Clip:")

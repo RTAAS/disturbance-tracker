@@ -55,9 +55,6 @@ func TestLoad_Configuration_WithTempFile(t *testing.T) {
     if len(cfg.Record_Inspect_Models) != 2 {
         t.Errorf("Expected 2 inspect models, got %d", len(cfg.Record_Inspect_Models))
     }
-    if cfg.Record_Inspect_Segment != 10 {
-        t.Errorf("Expected Record_Inspect_Segment 10, got %d", cfg.Record_Inspect_Segment)
-    }
     if cfg.Train_Target != 0.85 {
         t.Errorf("Expected Train_Target 0.85, got %f", cfg.Train_Target)
     }

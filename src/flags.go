@@ -3,7 +3,7 @@ package main
 
 import (
 	// DTrack
-	. "dtrack/common"
+	"dtrack/log"
 	"dtrack/state"
 	// Standard
 	"flag"
@@ -32,10 +32,10 @@ func parse_flags() {
 	flag.Parse()
 
 	// Safety checks
-	okay_actions := []string {"monitor", "review", "train"}
+	okay_actions := []string {"monitor", "review", "train", "record"}
 	if !In_List(*app_action, okay_actions) {
 		show_help()
-		Die("Unexpected Action: %s", *app_action)
+		log.Die("Unexpected Action: %s", *app_action)
 	}
 }
 
@@ -52,4 +52,17 @@ func show_help() {
 	fmt.Println("\nExamples:")
 	fmt.Println("  DTRACK_RECORD_DURATION=00:05:00  dtrack -a monitor")
 	fmt.Println("  dtrack -a review")
+}
+
+// Returns true if a search string is present in a list of slices
+func In_List(needle string, haystack []string) bool {
+    // Iterate through each element in the slice
+    for _, element := range haystack {
+        // Check if the current element matches the needle
+        if element == needle {
+            return true
+        }
+    }
+    // No match found
+    return false
 }

@@ -32,12 +32,15 @@ func menu_bar() fyne.CanvasObject {
 		container.NewCenter(save_label))
 	// Tag no-match [+1]
 	menu_buttons = append(menu_buttons,
-		widget.NewButton("[ Save as ]\nno-match", tag_clip))
-
+		widget.NewButton("[ Save as ]\nNo Match", func() {
+			tag_clip("empty")
+		}))
 	// Models [+X]
 	for _, model := range state.Runtime.Record_Inspect_Models {
 		menu_buttons = append(menu_buttons,
-			widget.NewButton("[ Save as ]\n" + model, tag_clip))
+			widget.NewButton("[ Save as ]\n" + model, func() {
+				tag_clip(model)
+			}))
 	}
 
 	// Return buttons inside full-width container

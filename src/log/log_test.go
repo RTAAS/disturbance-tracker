@@ -1,4 +1,4 @@
-package common
+package log
 
 import (
 	"bytes"
@@ -53,7 +53,7 @@ func captureStderr(f func()) string {
 
 func TestDebug(t *testing.T) {
 	testArg := "check"
-	expectedFormat := "[DEBUG]\t  Debug message: check\n"
+	expectedFormat := "[DEBUG]\t Debug message: check\n"
 
 	// 1. Test when Debug_Enabled is TRUE (should print)
 	Debug_Enabled = true
@@ -78,7 +78,7 @@ func TestDebug(t *testing.T) {
 }
 
 func TestInfo(t *testing.T) {
-	expectedFormat := "[INFO]\t  System initialized\n"
+	expectedFormat := "[INFO]\t System initialized\n"
 
 	output := captureStdout(func() {
 		// FIX: Using a constant string literal for the format to avoid "non-constant format string" error
@@ -92,7 +92,7 @@ func TestInfo(t *testing.T) {
 
 func TestWarn(t *testing.T) {
 	testArg := 512
-	expectedFormat := "[WARNING] Memory limit reached: 512MB\n"
+	expectedFormat := "[WARN]\t Memory limit reached: 512MB\n"
 
 	output := captureStderr(func() {
 		// FIX: Using a constant string literal for the format to avoid "non-constant format string" error
@@ -134,8 +134,12 @@ func TestDie(t *testing.T) {
 	}
 
 	// 3. Check the output on stderr
-	expectedStderr := "[CRITICAL] Test crash reason: File missing\n"
+	expectedStderr := "[ERROR]\t Test crash reason: File missing\n"
 	if !strings.Contains(stderr.String(), expectedStderr) {
 		t.Errorf("Die failed to print critical message to stderr.\nGot output: %q\nWant substring: %q", stderr.String(), expectedStderr)
 	}
+}
+
+func TestClean_Workspace(t *testing.T) {
+	// No-Op
 }

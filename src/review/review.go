@@ -7,6 +7,8 @@
 package review
 
 import (
+	// Standard
+	"image"
 	// 3rd-Party
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -15,11 +17,10 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"fyne.io/fyne/v2/theme"
 )
 
-// Collection of all audio and clips from an mkv file
-//TODO
+// Most recently completed step
+var Readiness int = 0
 
 // List of audio segments available in loaded recording
 var Current_Segments binding.StringList = binding.NewStringList()
@@ -27,13 +28,30 @@ var Current_Segments binding.StringList = binding.NewStringList()
 // Image currently displayed in preview pane
 var Current_Image *canvas.Image = canvas.NewImageFromImage(nil)
 
+// Currently selected frame
+var Current_Frame int
+
+// Use existing filename in output slices
+var Current_Filename string
+
+// Collection of all audio and clips from an mkv file
+var Loaded_Video []VideoSegment
+
+// Single segment of sliced mkv file
+type VideoSegment struct {
+	count	uint		// Copy of index value
+	data	[]byte		// Raw audio data, for machine learning
+	audio	[]byte		// One-second wav clip
+	image	image.Image	// Image from one video frame
+}
+
 // Primary post-bootstrap entry point
 func Launch() {
 	application := app.NewWithID("DTrack")
 	root_window := application.NewWindow("DTrack Review")
 	root_window.Resize(fyne.NewSize(1024, 768))
 	root_window.SetContent(review_window())
-	Current_Status.Set("Select a video to begin review ...")
+	reset_environment()
 	root_window.ShowAndRun()
 }
 
@@ -44,10 +62,14 @@ func get_window(root int) fyne.Window {
 
 // Main structure of review window
 func review_window() fyne.CanvasObject {
-	top, middle, bottom := menu_bar(), segment_viewer(), status_bar()
+	top, middle, bottom := menu_bar(), status_bar(), segment_viewer()
 	return container.New(
-		layout.NewBorderLayout(top, bottom, nil, nil),
-		top, middle, bottom)
+		layout.NewBorderLayout(top, nil, nil, nil),
+		top,
+		container.New(
+			layout.NewBorderLayout(middle, nil, nil, nil),
+			middle,
+			bottom))
 }
 
 // Main review container (middle row)
@@ -66,11 +88,8 @@ func segment_viewer() fyne.CanvasObject {
 			// Bind label text to item value
 			o.(*widget.Label).Bind(i.(binding.String))
 		})
-
 	// Event: Clicked segment name from list
-	//segment_list.OnSelected = func(id widget.ListItemID) {
-	//	Current_Status.Set("Selected clip: " + Current_Segments[id])
-	//}
+	segment_list.OnSelected = load_clip
 
 	train_button := widget.NewButton(
 		"[ Step #5 ]\nBegin Training",
@@ -83,7 +102,6 @@ func segment_viewer() fyne.CanvasObject {
 
 	// Right: Image showing first frame of video segment
 	Current_Image.FillMode = canvas.ImageFillOriginal
-	Current_Image.Resource = theme.NavigateBackIcon()
 
 	// Assemble the actual workspace area
 	body := container.NewHSplit(
@@ -91,31 +109,4 @@ func segment_viewer() fyne.CanvasObject {
 		Current_Image)
 	body.SetOffset(0.22)
 	return body
-}
-
-// Load user-selected video
-func open_video(uri fyne.URIReadCloser, err error) {
-	// User cancelled or no file selected
-	if uri == nil || err != nil {
-		return
-	}
-	defer uri.Close()
-	filepath := uri.URI().Path()
-
-	// Mock update
-	Current_Status.Set("Selected: " + filepath)
-	//Current_Segments.Set([]string{"1", "2", "3", "4", "5", "6", "7"})
-	//Current_Image.Resource = theme.FyneLogo()
-}
-
-// Replay currently selected audio segment
-func replay_segment() {
-}
-
-// Copy (1-second) audio segment (.wav) to tag directory
-func tag_clip() {
-	// TODO
-}
-
-func select_model_and_train() {
 }

@@ -2,7 +2,7 @@ package daemon
 
 import (
 	// DTrack
-	. "dtrack/common"
+	"dtrack/log"
 	//"dtrack/state"
 )
 
@@ -20,7 +20,7 @@ func scan_segments(name string, segment chan audio_segment) {
 		// Wait for incoming segments
 		case incoming_segment, ok := <-segment:
 			if !ok {
-				Warn("Scanner unexpectedly closed: %s", name)
+				log.Warn("Scanner unexpectedly closed: %s", name)
 				return
 			}
 
@@ -31,7 +31,7 @@ func scan_segments(name string, segment chan audio_segment) {
 			}
 
 			// Forward to ML process and test for match
-			Trace("Model %s is scanning %d", name, last_segment.count)
+			log.Trace("Model %s is scanning %d", name, last_segment.count)
 			//check_window := append(last_segment.data, incoming_segment.data...)
 			//TODO
 

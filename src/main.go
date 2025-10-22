@@ -9,7 +9,7 @@ package main
 
 import (
 	// Bootstrap
-	"dtrack/common"
+	"dtrack/log"
 	"dtrack/state"
 	// Actions
 	"dtrack/daemon"
@@ -20,8 +20,8 @@ import (
 func main() {
 	// Bootstrap
 	parse_flags()
-	common.Debug_Enabled = *app_verbose || *app_trace
-	common.Trace_Enabled = *app_trace
+	log.Debug_Enabled = *app_verbose || *app_trace
+	log.Trace_Enabled = *app_trace
 	state.Load_Configuration(*app_config_path)
 
 	// Kickoff
@@ -34,5 +34,5 @@ func main() {
 	action_map[*app_action]()
 
 	// Post-processing
-	common.Clean_Workspace()
+	log.Clean_Workspace()
 }

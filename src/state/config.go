@@ -10,7 +10,7 @@ package state
 
 import (
 	// DTrack
-	. "dtrack/common"
+	"dtrack/log"
 	// Standard
 	"encoding/json"
 	"fmt"
@@ -113,9 +113,9 @@ func Load_Configuration(config_path string) {
 	}
 
 	// Check for configuration file
-	Debug("Loading configuration values from: %s", config_path)
+	log.Debug("Loading configuration values from: %s", config_path)
 	if _, err := os.Stat(config_path); err != nil {
-		Info("Configuration file not found; using defaults.")
+		log.Info("Configuration file not found; using defaults.")
 		Runtime = cfg
 		return
 	}
@@ -123,21 +123,21 @@ func Load_Configuration(config_path string) {
 	// Load configuration file
 	file_data, err := os.ReadFile(config_path)
 	if err != nil {
-		Die("Error opening configuration file; ABORT!")
+		log.Die("Error opening configuration file; ABORT!")
 	}
 
 	// Merge configuration values into cfg
 	if err := json.Unmarshal(file_data, &cfg); err != nil {
-		Die("Failed to parse configuration as JSON; ABORT!")
+		log.Die("Failed to parse configuration as JSON; ABORT!")
 	}
 
 	// Search for known environment variables
 	for env_key, conf_field := range Environment_Configation_Map {
 		if env_value := os.Getenv(env_key); env_value != "" {
-			Debug("Environment variable found: %s", env_key)
+			log.Debug("Environment variable found: %s", env_key)
 			field := reflect.ValueOf(&cfg).Elem().FieldByName(conf_field)
 			if !field.IsValid() || !field.CanSet() {
-				Die("Invalid field: %s", conf_field)
+				log.Die("Invalid field: %s", conf_field)
 			}
 
 			// Merge environment variables into cfg
@@ -148,22 +148,22 @@ func Load_Configuration(config_path string) {
 				if intVal, err := strconv.Atoi(env_value); err == nil {
 					field.SetInt(int64(intVal))
 				} else {
-					Die("%s is not Integer", env_key)
+					log.Die("%s is not Integer", env_key)
 				}
 			case reflect.Float64:
 				if intVal, err := strconv.Atoi(env_value); err == nil {
 					field.SetFloat(float64(intVal))
 				} else {
-					Die("%s is not Float64", env_key)
+					log.Die("%s is not Float64", env_key)
 				}
 			case reflect.Bool:
 				if boolVal, err := strconv.ParseBool(env_value); err == nil {
 					field.SetBool(boolVal)
 				} else {
-					Die("%s is not Boolean", env_key)
+					log.Die("%s is not Boolean", env_key)
 				}
 			default:
-				Die("Unexpected field type for %s", conf_field)
+				log.Die("Unexpected field type for %s", conf_field)
 			}
 		}
 	}

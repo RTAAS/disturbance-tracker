@@ -1,4 +1,4 @@
-package common
+package log
 
 import (
 	// Standard
@@ -14,7 +14,7 @@ var Trace_Enabled bool = false
 func Trace(format string, a ...interface{}) {
 	if Trace_Enabled {
 		message := fmt.Sprintf(format, a...)
-		fmt.Println("[TRACE]\t ", message)
+		fmt.Println("[TRACE]\t", message)
 	}
 }
 
@@ -22,26 +22,31 @@ func Trace(format string, a ...interface{}) {
 func Debug(format string, a ...interface{}) {
 	if Debug_Enabled {
 		message := fmt.Sprintf(format, a...)
-		fmt.Println("[DEBUG]\t ", message)
+		fmt.Println("[DEBUG]\t", message)
 	}
 }
 
 // Print a message to stdout
 func Info(format string, a ...interface{}) {
 	message := fmt.Sprintf(format, a...)
-	fmt.Println("[INFO]\t ", message)
+	fmt.Println("[INFO]\t", message)
 }
 
 // Print a message to stderr
 func Warn(format string, a ...interface{}) {
 	message := fmt.Sprintf(format, a...)
-	fmt.Fprintln(os.Stderr, "[WARNING]", message)
+	fmt.Fprintln(os.Stderr, "[WARN]\t", message)
 }
 
 // Print a message to stderr, run cleanup, and exit
 func Die(format string, a ...interface{}) {
 	message := fmt.Sprintf(format, a...)
-	fmt.Fprintln(os.Stderr, "[CRITICAL]", message)
+	fmt.Fprintln(os.Stderr, "[ERROR]\t", message)
 	Clean_Workspace()
 	os.Exit(1)
+}
+
+// Clean up any partial operations found in workspace
+func Clean_Workspace() {
+	// No-Op
 }

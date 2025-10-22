@@ -7,7 +7,7 @@ package daemon
 
 import (
 	// DTrack
-	. "dtrack/common"
+	"dtrack/log"
 	"dtrack/state"
 	"dtrack/ffmpeg"
 	// Standard
@@ -29,19 +29,19 @@ func Run() {
 	go func() {
 		// Wait for first Ctrl+C
 		<-sig_chan
-		Info("SIGTERM: Waiting for recording to complete.")
+		log.Info("SIGTERM: Waiting for current recording to finish.")
 		stop_recording = true
 		// Wait for second Ctrl+C
 		<-sig_chan
-		Die("Second Ctrl+C received. Terminating immediately.")
+		log.Die("Second Ctrl+C received. Terminating immediately.")
 	}()
 
 	// Start scanners if any models are defined
 	if state.Runtime.Has_Models {
-		Debug("Initializing segment scanners")
+		log.Debug("Initializing segment scanners")
 		go start_scanners(wav_stream)
 	} else {
-		Warn("No inspection models configured; only able to record!")
+		log.Warn("No inspection models configured; only able to record!")
 		go Pipe2DevNull(wav_stream)
 	}
 
@@ -52,19 +52,27 @@ func Run() {
 	// Start main recording loop that sends data to scanners (and mkv recordings)
 	for !stop_recording {
 		mkv := save_path + time.Now().Format(ffmpeg.SaveName)
+		// Verify output directory exists
+		if err := os.MkdirAll(save_path, 0755); err != nil {
+			log.Die("Failed to make output directory: %s", save_path)
+			return
+		}
 
-		Debug("New ffmpeg process, saving to: %s", mkv)
+		log.Debug("New ffmpeg process, saving to: %s", mkv)
 		args := append(record_args, mkv)
-		ffmpeg.ReadStdin(args, daemon_stream)
+		ffmpeg.ReadStdin(args, daemon_stream, false)
 
 		// Pause to prevent thrashing of physical devices
 		time.Sleep(50 * time.Millisecond)
 	}
+}
 
+// Replicates a stream piped to /dev/null
+func Pipe2DevNull(r io.Reader) {
+	io.Copy(io.Discard, r)
 }
 
 // Initialize all audio segment scanners and process wav_stream data
-//func start_scanners(process context.Context, wav_stream *io.PipeReader) {
 func start_scanners(wav_stream *io.PipeReader) {
 	// Process manager for segment scanners
 	scanners := make(map[string]chan audio_segment)
@@ -88,7 +96,7 @@ func start_scanners(wav_stream *io.PipeReader) {
 		// Collect new segment
 		case new_segment, ok := <-returned_segments:
 			if !ok {
-				Die("Stream converter disappeared")
+				log.Die("Stream converter disappeared")
 				return
 			}
 			// Distribute segment to scanners
@@ -97,7 +105,7 @@ func start_scanners(wav_stream *io.PipeReader) {
 				// Send segment to individual scanner
 				case scanner <- new_segment:
 				default:
-					Warn("Scanner Blocked: %s", name)
+					log.Warn("Scanner Blocked: %s", name)
 				}
 			}
 		}
@@ -118,19 +126,19 @@ func stream_to_segment(stream *io.PipeReader, segments chan<- audio_segment) {
 		_, err := io.ReadFull(stream, segment_data)
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			// WAV stream ended; restart fresh loop
-			Debug("Reading segment was reset")
+			log.Debug("Reading segment was reset")
 			continue
 		}
 		if err != nil {
-			Die("Unhandled stream read error: %s", err.Error())
+			log.Die("Unhandled stream read error: %s", err.Error())
 		}
 
 		// Add new segment to queue
-		segment_id++
-		Trace("New segment accumulated: %d", segment_id)
+		log.Trace("New segment accumulated: %d", segment_id)
 		segments <- audio_segment {
 			count: segment_id,
 			data: segment_data,
 		}
+		segment_id++
 	}
 }

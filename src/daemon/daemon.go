@@ -1,20 +1,21 @@
-//##
+// ##
 // DTrack Package: Surveilance Monitor
 //
 // Collects audio+video files and logs any matched audio disturbances.
-//##
+// ##
 package daemon
 
 import (
 	// DTrack
+	"dtrack/ffmpeg"
 	"dtrack/log"
 	"dtrack/state"
-	"dtrack/ffmpeg"
+
 	// Standard
+	"io"
 	"os"
 	"os/signal"
 	"time"
-	"io"
 )
 
 // Primary post-bootstrap entry point
@@ -92,21 +93,19 @@ func start_scanners(wav_stream *io.PipeReader) {
 
 	// Distribute new segments to all scanners
 	for {
-		select {
 		// Collect new segment
-		case new_segment, ok := <-returned_segments:
-			if !ok {
-				log.Die("Stream converter disappeared")
-				return
-			}
-			// Distribute segment to scanners
-			for name, scanner := range scanners {
-				select {
-				// Send segment to individual scanner
-				case scanner <- new_segment:
-				default:
-					log.Warn("Scanner Blocked: %s", name)
-				}
+		new_segment, ok := <-returned_segments
+		if !ok {
+			log.Die("Stream converter disappeared")
+			return
+		}
+		// Distribute segment to scanners
+		for name, scanner := range scanners {
+			select {
+			// Send segment to individual scanner
+			case scanner <- new_segment:
+			default:
+				log.Warn("Scanner Blocked: %s", name)
 			}
 		}
 	}
@@ -121,12 +120,12 @@ func stream_to_segment(stream *io.PipeReader, segments chan<- audio_segment) {
 	for {
 		// Allocate a buffer for the audio segment
 		segment_data := make([]byte, ffmpeg.BytesPerSecond)
-		
+
 		// Block until segment_data is full
 		_, err := io.ReadFull(stream, segment_data)
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			// WAV stream ended; restart fresh loop
-			log.Debug("Reading segment was reset")
+			log.Die("Stream reader vanished")
 			continue
 		}
 		if err != nil {
@@ -135,9 +134,9 @@ func stream_to_segment(stream *io.PipeReader, segments chan<- audio_segment) {
 
 		// Add new segment to queue
 		log.Trace("New segment accumulated: %d", segment_id)
-		segments <- audio_segment {
+		segments <- audio_segment{
 			count: segment_id,
-			data: segment_data,
+			data:  segment_data,
 		}
 		segment_id++
 	}

@@ -5,12 +5,14 @@ import (
 	"dtrack/ffmpeg"
 	"dtrack/log"
 	"dtrack/state"
+
 	// Standard
 	"fmt"
 	"image/png"
 	"io"
 	"os"
 	"strconv"
+
 	// 3rd-Party
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
@@ -87,8 +89,8 @@ func open_video(uri fyne.URIReadCloser, err error) {
 		log.Trace("New segment read: %d", segment_id)
 		idList = append(idList, strconv.FormatUint(uint64(segment_id), 10))
 		mkvData = append(mkvData, VideoSegment{
-				count: segment_id,
-				data: segment_data})
+			count: segment_id,
+			data:  segment_data})
 		segment_id++
 	}
 

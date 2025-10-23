@@ -4,6 +4,7 @@ import (
 	// DTrack
 	"dtrack/log"
 	"dtrack/state"
+
 	// Standard
 	"bytes"
 	"io"
@@ -14,8 +15,9 @@ import (
 )
 
 // One-second segment of audio from pcm_s16le (segment_size)
-//   Bytes Per Second = Sample Rate * Channels * (Bits Per Sample / 8)
-//   96000            = -ac 48000   * -c 1     * (16/8)
+//
+//	Bytes Per Second = Sample Rate * Channels * (Bits Per Sample / 8)
+//	96000            = -ac 48000   * -c 1     * (16/8)
 const BytesPerSecond int = 96000
 
 // MKV Filename:  YYYY-MM-DD_HHmmss
@@ -59,11 +61,13 @@ func PlayData(wavData []byte) {
 }
 
 // Return list of arguments for ffmpeg that:
-//   Reads Audio to Stream and Video to Images.
-// ffmpeg [basic-options] [input-mkv] \
-//   [wav-to-stdout] \
-//   [output-wav] \
-//   [output-images]
+//
+//	Reads Audio to Stream and Video to Images.
+//
+//	ffmpeg [basic-options] [input-mkv] \
+//	  [wav-to-stdout] \
+//	  [output-wav] \
+//	  [output-images]
 func Extract_Arguments(infile string, outdir string) []string {
 	return []string{
 		// basic-options input-mkv
@@ -77,12 +81,14 @@ func Extract_Arguments(infile string, outdir string) []string {
 }
 
 // Return list of arguments for ffmpeg that:
-//   Saves A/V to MKV and Audio to Stream.
-// ffmpeg [basic-options] \
-//   [audio-options] [audio-device] \
-//   [video-options] [video-device] \
-//   [output-wav] [to-stdout] \
-//   [output-wav&vid] [to-mkv] [MISSING:filename]
+//
+//	Saves A/V to MKV and Audio to Stream.
+//
+//	ffmpeg [basic-options] \
+//	  [audio-options] [audio-device] \
+//	  [video-options] [video-device] \
+//	  [output-wav] [to-stdout] \
+//	  [output-wav&vid] [to-mkv] [MISSING:filename]
 func Recorder_Arguments() []string {
 	// 5+2+_+2+2+_+2+11+_+14 = 38 (+vars)
 	arg_count := 38 +
@@ -97,7 +103,7 @@ func Recorder_Arguments() []string {
 
 	// basic-options  +5
 	args = append(args, "-y", "-loglevel", "fatal", "-nostdin", "-nostats")
-	
+
 	// audio-options  +2 +X
 	args = append(args, "-t", state.Runtime.Record_Duration)
 	args = append(args, state.Runtime.Record_Audio_Options...)

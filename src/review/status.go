@@ -1,7 +1,9 @@
 package review
 
 import (
+	// Standard
 	"image/color"
+
 	// 3rd-Party
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"

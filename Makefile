@@ -7,8 +7,10 @@
 dtrack:
 	cd ./src && go build -o ../dtrack .
 
-test:
+test: dtrack
 	cd ./src && go test ./...
+	cd ./src && go vet ./...
+	cd ./src && go-staticcheck ./...
 
 clean:
 	podman rmi dtrack_builder 2>/dev/null || true

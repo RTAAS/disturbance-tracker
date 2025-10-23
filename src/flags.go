@@ -5,6 +5,7 @@ import (
 	// DTrack
 	"dtrack/log"
 	"dtrack/state"
+
 	// Standard
 	"flag"
 	"fmt"
@@ -32,7 +33,7 @@ func parse_flags() {
 	flag.Parse()
 
 	// Safety checks
-	okay_actions := []string {"monitor", "review", "train", "record"}
+	okay_actions := []string{"monitor", "review", "train", "record"}
 	if !In_List(*app_action, okay_actions) {
 		show_help()
 		log.Die("Unexpected Action: %s", *app_action)
@@ -42,13 +43,13 @@ func parse_flags() {
 // Show basic usage information
 func show_help() {
 	fmt.Println("Usage:\n  dtracker [-h] -a <action> [options]")
-	fmt.Println("\nActions:")  // copy: okay_actions
+	fmt.Println("\nActions:") // copy: okay_actions
 	fmt.Println("  monitor\tCollect recordings and automatically review")
 	fmt.Println("  review\tManually review collected logs")
 	fmt.Println("  train\t\tTrain a new AI Model")
 	fmt.Println("\nOptions:")
 	flag.PrintDefaults()
-	state.Show_Help()  // config.go
+	state.Show_Help() // config.go
 	fmt.Println("\nExamples:")
 	fmt.Println("  DTRACK_RECORD_DURATION=00:05:00  dtrack -a monitor")
 	fmt.Println("  dtrack -a review")
@@ -56,13 +57,13 @@ func show_help() {
 
 // Returns true if a search string is present in a list of slices
 func In_List(needle string, haystack []string) bool {
-    // Iterate through each element in the slice
-    for _, element := range haystack {
-        // Check if the current element matches the needle
-        if element == needle {
-            return true
-        }
-    }
-    // No match found
-    return false
+	// Iterate through each element in the slice
+	for _, element := range haystack {
+		// Check if the current element matches
+		if element == needle {
+			return true
+		}
+	}
+	// No match found
+	return false
 }

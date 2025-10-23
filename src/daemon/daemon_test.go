@@ -3,8 +3,8 @@ package daemon
 import (
 	"bytes"
 	"io"
-	"testing"
 	"strings"
+	"testing"
 )
 
 // Ensure input is fully consumed without error

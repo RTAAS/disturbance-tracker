@@ -14,13 +14,13 @@ func TestIn_List(t *testing.T) {
 		{
 			name:     "Present in list",
 			needle:   "monitor",
-			haystack: []string {"monitor", "review", "train"},
+			haystack: []string{"monitor", "review", "train"},
 			expected: true,
 		},
 		{
 			name:     "Not present in list",
 			needle:   "wrongaction",
-			haystack: []string {"monitor", "review", "train"},
+			haystack: []string{"monitor", "review", "train"},
 			expected: false,
 		},
 		{
@@ -32,7 +32,7 @@ func TestIn_List(t *testing.T) {
 		{
 			name:     "Case sensitive (Not found)",
 			needle:   "MONITOR",
-			haystack: []string {"monitor", "review", "train"},
+			haystack: []string{"monitor", "review", "train"},
 			expected: false,
 		},
 		{

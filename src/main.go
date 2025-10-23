@@ -1,20 +1,21 @@
-//##
+// ##
 // Audio Disturbance Tracker (DTrack)
 //
-// License:   AGPL-3
-// Copyright: 2024-2026, Michael Lustfield (MTecknology)
-// Authors:   See history with "git log" or "git blame"
-//##
+// License:	AGPL-3
+// Copyright:	2024-2026, Michael Lustfield (MTecknology)
+// Authors:	See history with "git log" or "git blame"
+// ##
 package main
 
 import (
 	// Bootstrap
 	"dtrack/log"
 	"dtrack/state"
+
 	// Actions
 	"dtrack/daemon"
-	"dtrack/review"
 	"dtrack/model"
+	"dtrack/review"
 )
 
 func main() {
@@ -25,7 +26,7 @@ func main() {
 	state.Load_Configuration(*app_config_path)
 
 	// Kickoff
-	action_map := map[string]func() {
+	action_map := map[string]func(){
 		"monitor": daemon.Run,
 		"record":  daemon.Run, // Alias
 		"review":  review.Launch,

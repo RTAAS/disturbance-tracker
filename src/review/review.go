@@ -1,14 +1,15 @@
-//##
+// ##
 // DTrack Package: GUI Review
 //
 // Splits audio (+video optional) files into 2-second clips and provides a
 // GUI tool that moves tagged audio clips into special directories, for traning.
-//##
+// ##
 package review
 
 import (
 	// Standard
 	"image"
+
 	// 3rd-Party
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -39,10 +40,10 @@ var Loaded_Video []VideoSegment
 
 // Single segment of sliced mkv file
 type VideoSegment struct {
-	count	uint		// Copy of index value
-	data	[]byte		// Raw audio data, for machine learning
-	audio	[]byte		// One-second wav clip
-	image	image.Image	// Image from one video frame
+	count uint        // Copy of index value
+	data  []byte      // Raw audio data, for machine learning
+	audio []byte      // One-second wav clip
+	image image.Image // Image from one video frame
 }
 
 // Primary post-bootstrap entry point
@@ -93,7 +94,7 @@ func segment_viewer() fyne.CanvasObject {
 
 	train_button := widget.NewButton(
 		"[ Step #5 ]\nBegin Training",
-		 select_model_and_train)
+		select_model_and_train)
 
 	// Assemble left-hand vertical stack
 	left_side := container.New(

@@ -3,10 +3,10 @@ package review
 import (
 	// DTrack
 	"dtrack/state"
+
 	// 3rd-Party
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	//"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
@@ -17,11 +17,11 @@ func menu_bar() fyne.CanvasObject {
 	// Menu length: 1+1+1+1+X = 4+X
 	menu_buttons := make(
 		[]fyne.CanvasObject, 0,
-		4 + len(state.Runtime.Record_Inspect_Models))
+		4+len(state.Runtime.Record_Inspect_Models))
 
 	// Select Video [+1]
 	menu_buttons = append(menu_buttons,
-                widget.NewButton("[ Step #1 ]\nSelect Video", select_video))
+		widget.NewButton("[ Step #1 ]\nSelect Video", select_video))
 	// Replay Audio [+1]
 	menu_buttons = append(menu_buttons,
 		widget.NewButton("[ Step #3 ]\nReplay Audio", replay_segment))
@@ -38,7 +38,7 @@ func menu_bar() fyne.CanvasObject {
 	// Models [+X]
 	for _, model := range state.Runtime.Record_Inspect_Models {
 		menu_buttons = append(menu_buttons,
-			widget.NewButton("[ Save as ]\n" + model, func() {
+			widget.NewButton("[ Save as ]\n"+model, func() {
 				tag_clip(model)
 			}))
 	}

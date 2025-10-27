@@ -7,6 +7,9 @@
 dtrack:
 	cd ./src && go build -o ../dtrack .
 
+dtrack-headless:
+	cd ./src && go build -o ../dtrack-headless -tags headless .
+
 test: dtrack
 	cd ./src && go test ./...
 	cd ./src && go vet ./...

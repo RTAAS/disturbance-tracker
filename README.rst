@@ -1,83 +1,49 @@
-Audio Pattern Ranger
-====================
+Disturbance Tracker
+===================
 
-Audio Pattern Ranger (APR) offers 24/7 monitoring for local disturbances
-in an environment, using machine learning models to detect and log specific
-nuisances, such as barking or car alarms. These models are trained on
-collected data to automate logging of detected disturbances.
+``DTrack`` is Surveilance Software that uses Machine Learning (AI/ML) to
+learn about and report on local disturbances, without nvidia or aws.
 
-Rather than using large complex solutions that make use of giant sample data,
-APR uses local recordings in order to identify the exact disturbance. This means
-that even an old laptop is plenty to put this project into action.
-
-**Documentation**: https://audio-pattern-ranger.github.io/apr/
+**Documentation:** https://mtecknology.github.io/dtrack/
 
 Background
 ----------
 
-In some jurisdictions, understaffing can lead to a lack of support for
-situations that are not life-threatening. In these cases, noise disturbances
-may be entirely ignored without an extended log of repeated violation along
-with video evidence proving log accuracy.
+Various excuses were being used to ignore reports of nuisance barking. The only
+solution was to wait for at least one hour of nuisance barking across two days
+and then build a detailed log that tracked every minute that a dog barked.
 
-The primary purpose of this application is to simplify the collection and
-analysis of video footage to identify disturbances (e.g., dog barks) using
-a locally trained model. This model is designed to accurately detect and
-classify specific disturbances in the local area.
+Similar solutions to this problem existed, but generic solutions fell horribly
+short (confusing wind with dog barks) and targeted solutions required high-cost
+resources (AWS + always-on internet) to operate.
 
-Quickstart
-----------
-
-Set of commands that can be copy/pasted to get going quickly:
-
-  .. code-block:: sh
-
-    # Install Requisites
-    sudo apt install vim screen git ffmpeg v4l-utils python3-yaml python3-pydub python3-torch python3-torchaudio python3-fasteners fonts-freefont-ttf
-
-    # Get Code
-    git clone https://github.com/audio-pattern-ranger/apr
-    cd apr
-
-    # Edit Config
-    cp example_config.yml config.yml
-    sensible-editor config.yml
-
-    # Use APR
-    python3 -m apr --help
-
-
-USB Flash Drive
----------------
-
-SD cards are often too slow for sustained writes. It is much easier to use a
-sperate USB flash drive for this purpose.
-
-as root (replace $USER):
-
-  .. code-block:: sh
-
-    # Format as exFAT
-    mkfs.exfat -L APRDATA /dev/sda1
-
-    # Edit fstab
-    echo '/dev/sda1  /home/$USER/data  exfat  defaults,noatime,nofail,users,uid=1000,gid=1000  0 0' >>/etc/fstab
-    systemctl daemon-reload
-
-Update config.yml::
-
-    workspace: /home/$USER/data
+``DTrack`` attempts to solve the same problem without external resources.
 
 How It Works
 ------------
 
-  .. image:: https://raw.githubusercontent.com/audio-pattern-ranger/apr/master/docs/images/apr.webp
-     :alt: APR Workflow
+  .. image:: https://raw.githubusercontent.com/MTecknology/dtrack/refs/heads/master/.github/images/workflow.webp
+     :alt: Disturbance Tracker Workflow
 
-1. Set up recorder
+1. Set up ``Monitoring Device``
 2. Collect some initial recordings
-3. Extract individual noises
-4. Train a model
-5. Detect noises in collected recordings
-6. Manually review the generated report
-7. Refine model with additional training
+3. Manually review recordings and tag nuisance noises
+4. Train a model (i.e. "Teach AI")
+5. Use trained model for automatic detection
+
+Monitoring Device
+~~~~~~~~~~~~~~~~~
+
+DTrack is designed to run on a ``Raspberry Pi v5``. It does not require any
+internet connection or subscription-style service.
+
+
+Configuration Options
+---------------------
+
+Configuration is stored in a ``JSON`` file, called ``config.json``. A sample can
+be copied from ``example_config.json``.
+
+Full configuration options are available using ``./dtrack --help``.
+
+**TODO:** ``docs -> github -> detailed config option docs``

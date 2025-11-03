@@ -1,25 +1,40 @@
 #!/usr/bin/make -f
 ##
-# Makefile for Debian Package Checker (Review System)
+# Makefile for Disturbance Tracker (DTrack)
 ##
 
-monitor:
-	python3 -m apr -a monitor
-
-docs:
-	make -C docs html
-	# sensible-browser docs/_build/html/index.html
+# Create the 'dtrack' binary (main application)
+dtrack:
+	cd ./src && go build -o ../dtrack .
 
 test:
-	python3 -m pytest
+	cd ./src && go test ./...
 
 clean:
-	# Sphinx-doc
-	make -C docs clean
-	# Python cache
-	find . -name '*.pyc' \
-		-o -type d -name '__pycache__' \
-		-o -type d -name '.pytest_cache' \
-		-exec rm -rf {} \;
+	podman rmi dtrack_builder 2>/dev/null || true
+	$(RM) dtrack
 
-.PHONY: monitor app docs test clean
+
+##
+# Container-Based Development
+##
+
+# Run Make targets from within 'builder'
+builder-%:
+	@$(MAKE) builder-shell BUILDER_CMD="make -C /repo $*"
+
+# Run an arbitrary command inside 'builder'
+BUILDER_CMD ?= /bin/bash
+builder-shell: builder
+	podman run --rm --tty \
+		-v "$(PWD):/repo" \
+		dtrack_builder $(BUILDER_CMD)
+
+# Container used to compile (build) final binary
+builder:
+	podman build \
+		-t dtrack_builder \
+		-f .builder
+
+
+.PHONY: test clean builder builder-shell

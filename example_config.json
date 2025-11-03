@@ -1,0 +1,11 @@
+{
+  "_COMMENT-1": "See `dtrack --help` for all options",
+  "workspace": "./_workspace",
+  "record_audio_device": "default",
+  "record_video_device": "/dev/video0",
+  "record_video_options": ["-f", "v4l2", "-video_size", "1280x720", "-framerate", "5"],
+  "record_duration": "00:10:00",
+  "record_inspect_models": ["barking", "horn"],
+  "train_target": 0.95,
+  "_COMMENT-2": "Final item must NOT have a trailing comma, here. ->"
+}

@@ -18,8 +18,8 @@ import (
 	"dtrack/review"
 )
 
-// Bootstrap
-func init() {
+func main() {
+	// Bootstrap
 	parse_flags()
 	log.Debug_Enabled = *app_verbose || *app_trace
 	log.Trace_Enabled = *app_trace
@@ -27,11 +27,9 @@ func init() {
 	if *app_keep_temp {
 		state.Runtime.Workspace_Keep_Temp = true
 	}
-}
-
-// Kickoff
-func main() {
 	defer Clean_Workspace()
+
+	// Kickoff
 	action_map := map[string]func(){
 		"monitor": daemon.Run,
 		"record":  daemon.Run, // Alias

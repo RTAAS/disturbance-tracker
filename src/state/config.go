@@ -14,7 +14,6 @@ import (
 
 	// Standard
 	"encoding/json"
-	"fmt"
 	"os"
 	"reflect"
 	"strconv"
@@ -27,63 +26,39 @@ var Runtime Application_Configuration
 // Defaults set in load_config()
 type Application_Configuration struct {
 	Workspace              string   `json:"workspace"`
-	Workspace_Keep_Temp    bool     `json:"workspace_keep_temp"`
-	Record_Audio_Device    string   `json:"record_audio_device"`
-	Record_Audio_Options   []string `json:"record_audio_options"`
-	Record_Video_Device    string   `json:"record_video_device"`
-	Record_Video_Options   []string `json:"record_video_options"`
-	Record_Video_Advanced  []string `json:"record_video_advanced"`
-	Record_Inspect_Models  []string `json:"record_inspect_models"`
+	Workspace_Keep_Temp    bool     `json:"keep_temp"`
+	Record_Audio_Device    string   `json:"audio_device"`
+	Record_Audio_Options   []string `json:"audio_options"`
+	Record_Video_Device    string   `json:"video_device"`
+	Record_Video_Options   []string `json:"video_options"`
+	Record_Video_Timestamp string   `json:"video_timestamp"`
+	Record_Video_Advanced  []string `json:"video_advanced"`
+	Record_Inspect_Models  []string `json:"inspect_models"`
 	Has_Models             bool
-	Record_Inspect_Backlog int     `json:"record_inspect_backlog"`
-	Record_Duration        string  `json:"record_duration"`
-	Train_Target           float64 `json:"train_target"`
-	Train_Rate             float64 `json:"train_rate"`
-	Train_Momentum         float64 `json:"train_momentum"`
-	Train_Dropout          float64 `json:"train_dropout"`
+	Record_Inspect_Backlog int      `json:"inspect_backlog"`
+	Record_Duration        string   `json:"record_duration"`
+	Train_Target           float64  `json:"train_target"`
+	Train_Rate             float64  `json:"train_rate"`
+	Train_Momentum         float64  `json:"train_momentum"`
+	Train_Dropout          float64  `json:"train_dropout"`
 }
 
 // Map environment variables to Runtime
 var Environment_Configation_Map = map[string]string{
-	"DTRACK_WORKSPACE":              "Workspace",
-	"DTRACK_WORKSPACE_KEEP_TEMP":    "Workspace_Keep_Temp",
-	"DTRACK_RECORD_AUDIO_DEVICE":    "Record_Audio_Device",
-	"DTRACK_RECORD_AUDIO_OPTIONS":   "Record_Audio_Options",
-	"DTRACK_RECORD_VIDEO_DEVICE":    "Record_Video_Device",
-	"DTRACK_RECORD_VIDEO_OPTIONS":   "Record_Video_Options",
-	"DTRACK_RECORD_VIDEO_ADVANCED":  "Record_Video_Advanced",
-	"DTRACK_RECORD_INSPECT_MODELS":  "Record_Inspect_Models",
-	"DTRACK_RECORD_INSPECT_BACKLOG": "Record_Inspect_Backlog",
-	"DTRACK_RECORD_DURATION":        "Record_Duration",
-	"DTRACK_TRAIN_TARGET":           "Train_Target",
-	"DTRACK_TRAIN_RATE":             "Train_Rate",
-	"DTRACK_TRAIN_MOMENTUM":         "Train_Momentum",
-	"DTRACK_TRAIN_DROUPOUT":         "Train_Dropout",
-}
-
-// Print information about configution file
-func Show_Help() {
-	fmt.Println("\nConfiguration Options:")
-	fmt.Println("  Config.JSON Key\t\tEnvironment Variable\t\tDefault Value")
-	fmt.Println("  ---------------\t\t--------------------\t\t-------------")
-	fmt.Println("  workspace\t\t\tDTRACK_WORKSPACE\t\t_workspace")
-	fmt.Println("  workspace_keep_temp\tDTRACK_WORKSPACE_KEEP_TEMP\tfalse")
-	fmt.Println("  record_audio_device\t\tDTRACK_RECORD_AUDIO_DEVICE\tplughw")
-	fmt.Println("  record_audio_options\t\tDTRACK_RECORD_AUDIO_OPTIONS\t[\"-f\", \"alsa\"]")
-	fmt.Println("  record_video_device\t\tDTRACK_RECORD_VIDEO_DEVICE\t/dev/video0")
-	fmt.Print("  record_video_options\t\tDTRACK_RECORD_VIDEO_OPTIONS")
-	fmt.Println("\t[\"-f\", \"v4l2\", \"-framerate\", \"5\"]")
-	fmt.Println("  record_video_advanced\t\tDTRACK_RECORD_VIDEO_ADVANCED\tSee Documentation")
-	fmt.Println("  record_duration\t\tDTRACK_RECORD_DURATION\t\t00:10:00  (10 minutes)")
-	fmt.Println("  record_inspect_models\t\tDTRACK_RECORD_INSPECT_MODELS\t[]")
-	fmt.Println("  record_inspect_backlog\tDTRACK_RECORD_INSPECT_BACKLOG\t5")
-	fmt.Println("  record_inspect_segment\tDTRACK_RECORD_INSPECT_SEGMENT\t-1")
-	fmt.Println("  train_target\t\t\tDTRACK_TRAIN_TARGET\t\t0.95")
-	fmt.Println("  train_rate\t\t\tDTRACK_TRAIN_RATE\t\t0.001")
-	fmt.Println("  train_momentum\t\tDTRACK_TRAIN_MOMENTUM\t\t0.9")
-	fmt.Println("  train_dropout\t\t\tDTRACK_TRAIN_DROUPOUT\t\t0.2")
-	fmt.Println("\nOption Priority:")
-	fmt.Println("  Defaults -> Config.json -> Environment")
+	"DTRACK_WORKSPACE":       "Workspace",
+	"DTRACK_KEEP_TEMP":       "Workspace_Keep_Temp",
+	"RECORD_AUDIO_DEVICE":    "Record_Audio_Device",
+	"RECORD_AUDIO_OPTIONS":   "Record_Audio_Options",
+	"RECORD_VIDEO_DEVICE":    "Record_Video_Device",
+	"RECORD_VIDEO_OPTIONS":   "Record_Video_Options",
+	"RECORD_VIDEO_ADVANCED":  "Record_Video_Advanced",
+	"RECORD_INSPECT_MODELS":  "Record_Inspect_Models",
+	"RECORD_INSPECT_BACKLOG": "Record_Inspect_Backlog",
+	"RECORD_DURATION":        "Record_Duration",
+	"TRAIN_TARGET":           "Train_Target",
+	"TRAIN_RATE":             "Train_Rate",
+	"TRAIN_MOMENTUM":         "Train_Momentum",
+	"TRAIN_DROPOUT":          "Train_Dropout",
 }
 
 // Loads Runtime configuration data into current state
@@ -97,11 +72,11 @@ func Load_Configuration(config_path string) {
 		Record_Video_Device:  "/dev/video0",
 		Record_Video_Options: []string{
 			"-f", "v4l2", "-framerate", "15"},
+		Record_Video_Timestamp: "drawtext=fontfile=/usr/share/fonts/truetype/freefont/" +
+			"FreeMonoBold.ttf:text=%{localtime}:fontcolor=red@0.9:x=7:y=7:fontsize=48",
 		Record_Video_Advanced: []string{
-			"-crf", "23", "-preset", "fast", "-maxrate", "3M", "-bufsize", "24M",
-			"-tune", "zerolatency", "-filter_complex", "[1:v]drawtext" +
-				"=fontfile=/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf" +
-				":text=%{localtime}:fontcolor=red@0.9:x=7:y=7:fontsize=48[dtstamp]"},
+			"libx264", "-crf", "23", "-preset", "fast", "-tune", "zerolatency",
+			"-maxrate", "3M", "-bufsize", "24M"},
 		Record_Duration:        "00:10:00",
 		Record_Inspect_Models:  []string{},
 		Record_Inspect_Backlog: 5,

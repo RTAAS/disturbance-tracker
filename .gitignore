@@ -1,15 +1,12 @@
-# python
-*.py[cod]
+# Makefile
+dtrack
+dtrack-headless
+docsite/
+
+# dtrack
+/config.json
+/_workspace
+
+# Python
 __pycache__/
-dist/
-
-# sphinx-doc
-docs/_build
-
-# workspace
-_workspace/
-config.yml
-
-# prevent accidental additions
-*.mkv
-*.ogg
+*.py[cod]

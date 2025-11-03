@@ -90,43 +90,33 @@ func Extract_Arguments(infile string, outdir string) []string {
 //	  [output-wav] [to-stdout] \
 //	  [output-wav&vid] [to-mkv] [MISSING:filename]
 func Recorder_Arguments() []string {
-	// 5+2+_+2+2+_+2+11+_+14 = 38 (+vars)
-	arg_count := 38 +
-		len(state.Runtime.Record_Audio_Options) +
-		len(state.Runtime.Record_Video_Options) +
-		len(state.Runtime.Record_Video_Advanced)
-	if !state.Runtime.Has_Models {
-		arg_count -= 11
-	}
-	// Base arguments for ffmpeg (without filename)
-	args := make([]string, 0, arg_count)
+	// basic-options
+	args := []string{"-y", "-loglevel", "warning", "-nostdin", "-nostats"}
 
-	// basic-options  +5
-	args = append(args, "-y", "-loglevel", "warning", "-nostdin", "-nostats")
-
-	// audio-options  +2 +X
+	// audio-options
 	args = append(args, "-t", state.Runtime.Record_Duration)
 	args = append(args, state.Runtime.Record_Audio_Options...)
-	// audio-device   +2
+	// audio-device
 	args = append(args, "-i", state.Runtime.Record_Audio_Device)
 
-	// video-options  +2 +X
+	// video-options
 	args = append(args, "-t", state.Runtime.Record_Duration)
 	args = append(args, state.Runtime.Record_Video_Options...)
-	// video-device   +2
+	// video-device
 	args = append(args, "-i", state.Runtime.Record_Video_Device)
 
-	// wav-to-stdout  +11
+	// wav-to-stdout
 	if state.Runtime.Has_Models {
 		args = append(args,
 			"-map", "0:a", "-c:a", "pcm_s16le",
 			"-ar", "48000", "-ac", "1", "-f", "wav", "-")
 	}
-	// wav&vid-to-mkv +X +14
-	args = append(args, state.Runtime.Record_Video_Advanced...)
+	// wav&vid-to-mkv
 	args = append(args,
+		"-filter_complex", "[1:v]" + state.Runtime.Record_Video_Timestamp + "[dtstamp]",
 		"-map", "0:a", "-map", "[dtstamp]", "-c:a", "pcm_s16le",
-		"-ar", "48000", "-ac", "1", "-c:v", "libx264")
+		"-ar", "48000", "-ac", "1", "-c:v")
+	args = append(args, state.Runtime.Record_Video_Advanced...)
 
 	log.Debug("Compiled recorder arguments: %s", args)
 	return args

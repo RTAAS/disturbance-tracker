@@ -1,29 +1,30 @@
 '''
-Train a Machine Learning Model
+PyTorch Model
 '''
 import logging
 import pathlib
+import glob
 import shutil
 import torch
 import torchaudio
 
-# APR
-import apr.config
-import apr.model.nnet
+# DTrack
+import ai.options
+import ai.nnet
 
 
 class AudioClassifier:
     '''
     TODO
     '''
-    def __init__(self):
+    def __init__(self, model_name):
         # Check for cuda
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         logging.debug(f'Backend: {self.device}')
 
         # Data locations
-        self.workspace = pathlib.Path(apr.config.get('workspace'))
-        self.model_path = self.workspace / 'model.pth'
+        self.workspace = pathlib.Path(ai.options.get('workspace'))
+        self.model_path = self.workspace / f'{model_name}.pth'
         self.training_data = self.workspace / 'train'
         self.testing_data = self.workspace / 'test'
         self.sample_rate = None
@@ -32,17 +33,15 @@ class AudioClassifier:
 
         # Tuning options
         self.batch_size = 1
-        self.momentum = apr.config.get('momentum')
-        self.learn_rate = apr.config.get('learning_rate')
-        self.target_accuracy = apr.config.get('target_accuracy')
+        self.learn_rate = ai.options.get('learning_rate')
 
         # Models (search labels)
-        self.models = apr.config.get('models')
+        self.models = ai.options.get('inspect_models')
         self.label2index = {m: i for i, m in enumerate(self.models)}
         self.index2label = {i: m for i, m in enumerate(self.models)}
 
         # ML Model - Assumes single channel audio
-        self.network = apr.model.nnet.M5(n_input=1).to(self.device)
+        self.network = M5(n_input=1).to(self.device)
         if self.model_path.exists():
             logging.debug(f'Loading previous state from {self.model_path}')
             self.network.load_state_dict(torch.load(self.model_path))
@@ -53,7 +52,7 @@ class AudioClassifier:
         self.optimizer = torch.optim.SGD(
                 self.network.parameters(),
                 lr=self.learn_rate,
-                momentum=self.momentum)
+                momentum=ai.options.get('train_momentum'))
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(
                 self.optimizer, milestones=[10, 30], gamma=0.1)
 
@@ -96,7 +95,7 @@ class AudioClassifier:
 
         # Load specified loader
         path = getattr(self, data)
-        dataset = apr.model.nnet.NoiseDataset(
+        dataset = NoiseDataset(
                 root_dir=path, models=self.models)
         loader = torch.utils.data.DataLoader(
                 dataset, batch_size=self.batch_size,
@@ -110,7 +109,6 @@ class AudioClassifier:
         '''
         Continue testing new models until target_accuracy is met
         '''
-        logging.debug(f'V: rate={self.sample_rate}  momentum={self.momentum}')
         # Track best iteration
         best_i = 0
         # Use defaults if no model was loaded
@@ -125,7 +123,7 @@ class AudioClassifier:
         # Continue training until desired threshold is met
         iteration = 0
         last_accuracy = [0, 0]  # [accuracy, count]
-        while avg_best < float(self.target_accuracy):
+        while avg_best < float(ai.options.get('train_target')):
             iteration += 1
 
             # Train a new model
@@ -231,6 +229,122 @@ class AudioClassifier:
                     f'({correct_count} of {total_pred[cls]})')
 
         return accuracy
+
+
+class M5(torch.nn.Module):
+    '''
+    Convolutional neural network with multiple convolutional and pooling layers
+    '''
+    def __init__(self, n_input=1, n_output=2, stride=16, n_channel=16):
+        super().__init__()
+        nn = torch.nn
+        self.conv1 = nn.Conv1d(n_input, n_channel, kernel_size=49, stride=16)
+        self.bn1 = nn.BatchNorm1d(n_channel)
+        self.pool1 = nn.MaxPool1d(4)
+        self.conv2 = nn.Conv1d(n_channel, 2 * n_channel, kernel_size=49)
+        self.bn2 = nn.BatchNorm1d(2 * n_channel)
+        self.pool2 = nn.MaxPool1d(2)
+        self.conv3 = nn.Conv1d(2 * n_channel, 4 * n_channel, kernel_size=7)
+        self.bn3 = nn.BatchNorm1d(4 * n_channel)
+        self.pool3 = nn.MaxPool1d(2)
+        self.conv4 = nn.Conv1d(4 * n_channel, 2 * n_channel, kernel_size=5)
+        self.bn4 = nn.BatchNorm1d(2 * n_channel)
+        self.pool4 = nn.MaxPool1d(2)
+        self.conv5 = nn.Conv1d(2 * n_channel, 1 * n_channel, kernel_size=3)
+        self.bn5 = nn.BatchNorm1d(1 * n_channel)
+
+        # Adaptive Global Average Pool (GAP)
+        self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
+        # Prevent over-fitting
+        self.dropout = nn.Dropout(ai.options.get('train_dropout'))
+        # Adjusted input size after GAP
+        self.fc1 = nn.Linear(n_channel, n_output)
+
+    def forward(self, x):
+        F = torch.nn.functional
+        x = self.conv1(x)
+        x = F.relu(self.bn1(x))
+        x = self.pool1(x)
+        x = self.conv2(x)
+        x = F.relu(self.bn2(x))
+        x = self.pool2(x)
+        x = self.conv3(x)
+        x = F.relu(self.bn3(x))
+        x = self.pool3(x)
+        x = self.conv4(x)
+        x = F.relu(self.bn4(x))
+        x = self.pool4(x)
+        x = self.conv5(x)
+        x = F.relu(self.bn5(x))
+
+        # Use global average pooling
+        x = self.global_avg_pool(x)
+        # Flatten for fully connected layer
+        x = x.view(x.size(0), -1)
+        # Apply dropout
+        x = self.dropout(x)
+
+        x = self.fc1(x)
+        return x
+
+
+class NoiseDataset(torch.utils.data.Dataset):
+    def __init__(self, root_dir, models, transform=[], n_input=256):
+        self.audio_list = glob.glob(f'{root_dir}/*/*.wav')
+        self.transform = transform
+        self.n_input = n_input
+        self.mean, self.std = self._compute_mean()
+        self.label2index = {m: i for i, m in enumerate(models)}
+
+    def _compute_mean(self):
+        meanstd_file = pathlib.Path(ai.options.get('workspace')) / '_mean.pth'
+        if meanstd_file.exists():
+            meanstd = torch.load(meanstd_file)
+        else:
+            logging.debug('computing _mean.pth')
+            mean = torch.zeros(self.n_input)
+            std = torch.zeros(self.n_input)
+            cnt = 0
+            for path in self.audio_list:
+                cnt += 1
+                logging.debug(f' {cnt} | {len(self.audio_list)}')
+
+                wv, _ = torchaudio.load(path)
+                if wv.shape[0] > 1:
+                    wv = torch.mean(wv, axis=0, keepdim=True)
+
+                for tr in self.transform:
+                    wv = tr(wv)
+                mean += wv.mean(1)
+                std += wv.std(1)
+
+            mean /= len(self.audio_list)
+            std /= len(self.audio_list)
+            meanstd = {
+                'mean': mean,
+                'std': std,
+                }
+            torch.save(meanstd, meanstd_file)
+
+        return meanstd['mean'], meanstd['std']
+
+    def __len__(self):
+        return len(self.audio_list)
+
+    def __getitem__(self, idx):
+        path = self.audio_list[idx]
+        class_name = path.split('/')[-2]
+        label = self.label2index[class_name]
+
+        wv, sr = torchaudio.load(path)
+        if wv.shape[0] > 1:
+            wv = torch.mean(wv, axis=0, keepdim=True)
+        audio_feature = wv
+        if self.transform:
+            for tr in self.transform:
+                audio_feature = tr(audio_feature)
+
+        return audio_feature, torch.tensor(label)
 
 
 def collate_fn(batch):

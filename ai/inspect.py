@@ -1,30 +1,33 @@
 '''
-APR Inspection
+Disturbance Tracker - Inspection Utility
 '''
 import pathlib
 import tempfile
 import torch
 
-# APR
-import apr.common
-import apr.options
-import apr.model.train
+# DTrack
+import ai.options
+import ai.nnet
 
 
-def entry_point():
-    inspect_path = pathlib.Path(apr.options.get('inspect_path'))
+def main():
+    '''
+    Perform inference with a specified model against a given input.
+    '''
+    print(ai.options.get("train_rate"))
+    inspect_path = pathlib.Path(ai.options.get('mkv_path'))
     if inspect_path.is_file():
-        mframes = scan_single(inspect_path)
+        mframes = scan_mkv(inspect_path)
         print(sorted(mframes))
     elif inspect_path.is_dir():
         for mkv in inspect_path.glob('*.mkv'):
-            mframes = scan_single(mkv)
+            mframes = scan_mkv(mkv)
             print(f'{mkv.name}: {sorted(mframes)}')
     else:
         raise Exception(f'Could not find {inspect_path}')
 
 
-def scan_single(audio_file):
+def scan_mkv(audio_file):
     '''
     Review each audio segment for a match to the trained model
     '''
@@ -32,8 +35,8 @@ def scan_single(audio_file):
     if not audio_path.exists():
         raise Exception(f'No video was found: {audio_file}')
 
-    classifier = apr.model.train.AudioClassifier()
-    tags = [t for t in apr.config.get('models') if t != 'nomatch']
+    classifier = ai.nnet.AudioClassifier()
+    tags = [t for t in ai.options.get('inspect_models') if t != 'nomatch']
 
     # Extract 1-second clips
     tempdir = tempfile.TemporaryDirectory()
@@ -55,3 +58,7 @@ def scan_single(audio_file):
             matched_frames.append(int(wav.name.split('.')[0]))
 
     return matched_frames
+
+
+if __name__ == '__main__':
+    main()

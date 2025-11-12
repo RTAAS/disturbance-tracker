@@ -72,15 +72,17 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#record-inspect-backlog">Record Inspect Backlog</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#record-inspect-trust">Record Inspect Trust</a>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#record-duration">Record Duration</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#train-target">Train Target</a>
+    <li class="toctree-l2"><a class="reference internal" href="#train-batch-size">Train Batch Size</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#train-epochs">Train Epochs</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#train-patience">Train Patience</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#train-rate">Train Rate</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#train-momentum">Train Momentum</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#train-dropout">Train Dropout</a>
     </li>
     </ul>
                   </li>
@@ -413,9 +415,32 @@ before newly recorded audio is discarded from queue.</p>
 </thead>
 <tbody>
 <tr>
-<td>number</td>
+<td>integer</td>
 <td>inspect_backlog</td>
 <td>RECORD_INSPECT_BACKLOG</td>
+</tr>
+</tbody>
+</table>
+</div>
+</blockquote>
+<h2 id="record-inspect-trust">Record Inspect Trust</h2>
+<blockquote>
+<p>Confidence level required to assume a match was found.</p>
+<div class="admonition option">
+<p class="admonition-title">Default Value: <code>0.50</code></p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Configuration Variable</th>
+<th>Environment Variable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>decimal</td>
+<td>inspect_trust</td>
+<td>RECORD_INSPECT_TRUST</td>
 </tr>
 </tbody>
 </table>
@@ -448,12 +473,11 @@ before newly recorded audio is discarded from queue.</p>
 </table>
 </div>
 </blockquote>
-<h2 id="train-target">Train Target</h2>
+<h2 id="train-batch-size">Train Batch Size</h2>
 <blockquote>
-<p>Success rate of model (as percent correct) required before training is
-considered a success.</p>
+<p>Number of samples to use in each round of training.</p>
 <div class="admonition option">
-<p class="admonition-title">Default Value: <code>0.95</code></p>
+<p class="admonition-title">Default Value: <code>16</code></p>
 <table>
 <thead>
 <tr>
@@ -464,9 +488,55 @@ considered a success.</p>
 </thead>
 <tbody>
 <tr>
-<td>number</td>
-<td>train_target</td>
-<td>TRAIN_TARGET</td>
+<td>integer</td>
+<td>train_batch_size</td>
+<td>TRAIN_BATCH_SIZE</td>
+</tr>
+</tbody>
+</table>
+</div>
+</blockquote>
+<h2 id="train-epochs">Train Epochs</h2>
+<blockquote>
+<p>Maximum number of learning attempts before stopping.</p>
+<div class="admonition option">
+<p class="admonition-title">Default Value: <code>200</code></p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Configuration Variable</th>
+<th>Environment Variable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>integer</td>
+<td>train_epochs</td>
+<td>TRAIN_EPOCHS</td>
+</tr>
+</tbody>
+</table>
+</div>
+</blockquote>
+<h2 id="train-patience">Train Patience</h2>
+<blockquote>
+<p>Maximum number of attempts to build a better model before stopping early.</p>
+<div class="admonition option">
+<p class="admonition-title">Default Value: <code>10</code></p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Configuration Variable</th>
+<th>Environment Variable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>integer</td>
+<td>train_patience</td>
+<td>TRAIN_PATIENCE</td>
 </tr>
 </tbody>
 </table>
@@ -474,9 +544,10 @@ considered a success.</p>
 </blockquote>
 <h2 id="train-rate">Train Rate</h2>
 <blockquote>
-<p>One of the "big three" macro adjustments in machine learning.</p>
+<p>Step size used to adjust learning. This may be decreased during training
+to prevent over-fitting data samples.</p>
 <div class="admonition option">
-<p class="admonition-title">Default Value: <code>0.001</code></p>
+<p class="admonition-title">Default Value: <code>0.0001</code></p>
 <table>
 <thead>
 <tr>
@@ -487,55 +558,9 @@ considered a success.</p>
 </thead>
 <tbody>
 <tr>
-<td>number</td>
+<td>decimal</td>
 <td>train_rate</td>
 <td>TRAIN_RATE</td>
-</tr>
-</tbody>
-</table>
-</div>
-</blockquote>
-<h2 id="train-momentum">Train Momentum</h2>
-<blockquote>
-<p>One of the "big three" macro adjustments in machine learning.</p>
-<div class="admonition option">
-<p class="admonition-title">Default Value: <code>0.9</code></p>
-<table>
-<thead>
-<tr>
-<th>Type</th>
-<th>Configuration Variable</th>
-<th>Environment Variable</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>number</td>
-<td>train_momentum</td>
-<td>TRAIN_MOMENTUM</td>
-</tr>
-</tbody>
-</table>
-</div>
-</blockquote>
-<h2 id="train-dropout">Train Dropout</h2>
-<blockquote>
-<p>One of the "big three" macro adjustments in machine learning.</p>
-<div class="admonition option">
-<p class="admonition-title">Default Value: <code>0.2</code></p>
-<table>
-<thead>
-<tr>
-<th>Type</th>
-<th>Configuration Variable</th>
-<th>Environment Variable</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>number</td>
-<td>train_dropout</td>
-<td>TRAIN_DROPOUT</td>
 </tr>
 </tbody>
 </table>

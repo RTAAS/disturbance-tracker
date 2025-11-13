@@ -1,12 +1,6 @@
 package model
 
 import (
-	"github.com/owulveryck/onnx-go"
-	"github.com/owulveryck/onnx-go/backend/x/gorgonnx"
-	"gorgonia.org/tensor"
-	"github.com/mjibson/go-dsp/fft"
-	"github.com/mjibson/go-dsp/window"
-
 	// DTrack
 	"dtrack/log"
 
@@ -14,6 +8,13 @@ import (
 	"fmt"
 	"math"
 	"os"
+
+	// 3rd-Party
+	"github.com/mjibson/go-dsp/fft"
+	"github.com/mjibson/go-dsp/window"
+	"github.com/owulveryck/onnx-go"
+	"github.com/owulveryck/onnx-go/backend/x/gorgonnx"
+	"gorgonia.org/tensor"
 )
 
 const (
@@ -26,9 +27,9 @@ const (
 	INT16_MAX          = 32768.0
 )
 
-type loaded_model struct {
-	onnxModel *onnx.Model
-	backend   *gorgonnx.Graph
+// OnnxModel holds only raw bytes for the model to ensure fresh/stateless instance.
+type OnnxModel struct {
+	RawBytes []byte
 }
 
 // Not supported by golang
@@ -37,7 +38,7 @@ func Train() {
 }
 
 // Loads the ONNX model once and initializes the Gorgonia backend.
-func Load(model_path string) loaded_model {
+func Load(model_path string) OnnxModel {
 	log.Debug("Loading model from %s", model_path)
 
 	// Read model data from onnx file
@@ -46,32 +47,22 @@ func Load(model_path string) loaded_model {
 		log.Die("could not read ONNX file: %s", err)
 	}
 
-	// Initialize Gorgonia backend
-	gorgoniaBackend := gorgonnx.NewGraph()
-
-	// Load model from onnx data
-	onnxModel := onnx.NewModel(gorgoniaBackend)
-	if err := onnxModel.UnmarshalBinary(bytes); err != nil {
-		log.Die("could not unmarshal ONNX model: %s", err)
-	}
-
 	// Return the loaded model
-	return loaded_model{
-		onnxModel: onnxModel,
-		backend:   gorgoniaBackend,
-	}
+	return OnnxModel{RawBytes: bytes}
 }
 
 // Prepare takes raw audio bytes and converts them to a ready-to-infer tensor (DSP logic).
 func Prepare(pcmData []byte) (*tensor.Dense, error) {
 	// 1. Pad/Truncate the data to ensure fixed length (AUDIO_LENGTH_BYTES)
-	//if len(pcmData) < AUDIO_LENGTH_BYTES {
-	//	padding := make([]byte, AUDIO_LENGTH_BYTES-len(pcmData))
-	//	pcmData = append(pcmData, padding...)
-	//}
-	//if len(pcmData) > AUDIO_LENGTH_BYTES {
-	//	pcmData = pcmData[:AUDIO_LENGTH_BYTES]
-	//}
+	if len(pcmData) < AUDIO_LENGTH_BYTES {
+		log.Warn("Audio Underflow; Segment was not large enough!")
+		padding := make([]byte, AUDIO_LENGTH_BYTES-len(pcmData))
+		pcmData = append(pcmData, padding...)
+	}
+	if len(pcmData) > AUDIO_LENGTH_BYTES {
+		log.Warn("Audio Overflow; Segment was too large!")
+		pcmData = pcmData[:AUDIO_LENGTH_BYTES]
+	}
 
 	// 2. Normalize to float64 for DSP
 	audioFloat32 := normalizeAudio(pcmData)
@@ -164,17 +155,25 @@ func Prepare(pcmData []byte) (*tensor.Dense, error) {
 }
 
 // Infer runs the prepared audio tensor through the ONNX model.
-func Infer(myModel loaded_model, preparedAudio *tensor.Dense) float64 {
-	inputInterface := tensor.Tensor(preparedAudio)
+func Infer(inferModel OnnxModel, preparedAudio *tensor.Dense) float64 {
+	// 1. Create a new backend for this specific inference run
+	// Note: Re-use will merge old values, resulting in confidence build-up issues.
+	backend := gorgonnx.NewGraph()
+	onnxModel := onnx.NewModel(backend)
 
-	// 1. Set Input and Run Backend
-	myModel.onnxModel.SetInput(0, inputInterface)
-	if err := myModel.backend.Run(); err != nil {
+	// 2. Unmarshal the model from the pre-loaded raw bytes
+	if err := onnxModel.UnmarshalBinary(inferModel.RawBytes); err != nil {
+		log.Die("could not unmarshal ONNX model during inference: %s", err)
+	}
+
+	// 3. Set Input and Run Backend
+	onnxModel.SetInput(0, tensor.Tensor(preparedAudio))
+	if err := backend.Run(); err != nil {
 		log.Die("ML: Inference failed on Gorgonia backend: %v", err)
 	}
 
-	// 2. Get Output and Post-Process (Sigmoid)
-	outputTensors, _ := myModel.onnxModel.GetOutputTensors()
+	// 4. Get Output and Post-Process (Sigmoid)
+	outputTensors, _ := onnxModel.GetOutputTensors()
 	outputDense, ok := outputTensors[0].(*tensor.Dense)
 	if !ok {
 		log.Die("ML: Output tensor is not a *tensor.Dense type.")

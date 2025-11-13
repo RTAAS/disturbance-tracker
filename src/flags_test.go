@@ -1,7 +1,10 @@
 package main_test
 
 import (
+	// DTrack
 	. "dtrack"
+
+	// Standard
 	"testing"
 )
 

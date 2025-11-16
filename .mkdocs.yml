@@ -1,7 +1,7 @@
 site_name: Disturbance Tracker
 site_description: DTrack uses Machine Learning to accurately identify and log specific noises.
 copyright: "&copy; 2024-2025 Michael Lustfield (MTecknology)"
-repo_url: https://github.com/MTecknology/distrubance-tracker
+repo_url: https://github.com/MTecknology/disturbance-tracker
 edit_uri: blob/master/docs/
 theme:
   name: readthedocs

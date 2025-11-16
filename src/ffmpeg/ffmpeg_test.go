@@ -60,7 +60,7 @@ func TestRecorderArguments(t *testing.T) {
 	// 2. Define expected arguments
 	expected := []string{
 		// basic-options
-		"-y", "-loglevel", "warning", "-nostdin", "-nostats",
+		"-y", "-loglevel", "warning", "-nostdin", "-nostats", "-guess_layout_max", "1",
 		// audio-options
 		"-t", "10", "-f", "alsa",
 		// audio-device

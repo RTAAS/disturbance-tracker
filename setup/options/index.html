@@ -303,8 +303,11 @@ Error opening input file /dev/video2.
 <h2 id="record-video-options">Record Video Options</h2>
 <blockquote>
 <p>Additional ffmpeg options used for video capture.</p>
+<p>List video devices using: <code>ls /dev/video*</code></p>
+<p>List video device capabilities using: <code>v4l2-ctl -d $DEVICE --list-formats-ext</code>;
+look for <code>'H264' (H.264, compressed)</code>.</p>
 <div class="admonition option">
-<p class="admonition-title">Default Value: <code>[ "-f", "v4l2", "-framerate", "15" ]</code></p>
+<p class="admonition-title">Default Value: <code>[ "-f", "v4l2", "-input_format", "h264", "-video_size", "1920x1080", "-framerate", "20" ]</code></p>
 <table>
 <thead>
 <tr>

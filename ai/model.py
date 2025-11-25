@@ -1,8 +1,5 @@
 '''
 Disturbance Tracker - Machine Learning Model Definition
-
-This module defines the PyTorch-based NoiseDetector class, which handles audio
-preprocessing, spectrogram conversion, and the neural network architecture.
 '''
 import logging
 import numpy as np
@@ -33,8 +30,15 @@ class NoiseDetector(nn.Module):
     A PyTorch-based neural network model for detecting specific audio events.
     Uses a simple CNN architecture to ensure ONNX/gonnx compatibility.
     '''
-    def __init__(self):
+    def __init__(self, num_classes=2):
         super().__init__()
+        
+        # Determine output features based on class count
+        # For Binary (1 output), Multi-class (N outputs)
+        # Note: We use CrossEntropyLoss for multi-class, so we need N outputs.
+        # If num_classes is 2, we technically could use 1 with Sigmoid, 
+        # but to keep logic consistent for "Arbitrary" classes, we use N outputs + Softmax.
+        self.num_classes = num_classes
 
         self.features = nn.Sequential(
             # Block 1: Output (64, 64, 94) - (1/2 size)
@@ -90,7 +94,7 @@ class NoiseDetector(nn.Module):
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
             nn.Dropout(p=0.3),
-            nn.Linear(1024, 1)  # Output features 1024 hongi
+            nn.Linear(1024, num_classes)
         )
 
     def forward(self, x):
@@ -110,26 +114,26 @@ def save(model, path):
     torch.save(model.state_dict(), path)
 
 
-def load(path):
+def load(path, num_classes):
     '''
     Returns a a trained model from a .pth file as NoiseDetector object.
+    Must provide num_classes to initialize the architecture correctly.
     '''
-    logging.trace('Loading model from %s', path)
+    logging.trace('Loading model from %s (Classes: %d)', path, num_classes)
     device = ai.model.CUDA_CPU
-    model = NoiseDetector()
+    model = NoiseDetector(num_classes=num_classes)
     model.load_state_dict(torch.load(path, map_location=device))
     model.to(device)
     model.eval()  # Set model to evaluation mode
     return model
 
 
-def convert(pth, onnx):
+def convert(pth, onnx, num_classes):
     '''
     Convert pytorch .pth model to ONNX (open model) format.
-    NOTE: 128, 188 is super critical; don't ask me why.
     '''
     logging.info('Converting %s to %s', pth, onnx)
-    model = load(pth)
+    model = load(pth, num_classes)
     torch.onnx.export(
         model, torch.randn(1, 3, 128, 188).to(ai.model.CUDA_CPU), onnx,
         input_names=['input'], output_names=['output'], opset_version=20,

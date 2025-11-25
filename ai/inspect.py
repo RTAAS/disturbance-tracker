@@ -1,5 +1,5 @@
 '''
-Disturbance Tracker - Inspection Utility
+Disturbance Tracker - Inspection Utility (Multi-Class)
 '''
 import logging
 import pathlib
@@ -7,6 +7,7 @@ import pprint
 import sys
 import json
 import torch
+import torch.nn.functional as F
 
 # DTrack project imports
 import ai.options
@@ -16,18 +17,33 @@ import ai.model
 def check_input():
     '''
     Main entry point for the inspection script.
-
-    Identify input and return inference results.
     '''
     options = ai.options.bootstrap()
     workspace = pathlib.Path(options['workspace'])
-
-    # Load all models specified in the configuration.
+    
+    # Load models and their labels
+    loaded_models = {}
+    
     if not options['inspect_models']:
         raise ValueError('No inspection models are configured.')
-    models = {
-            model: ai.model.load(workspace / 'models' / f'{model}.pth')
-            for model in options['inspect_models']}
+        
+    for model_name in options['inspect_models']:
+        # Load Labels
+        labels_path = workspace / 'models' / f'{model_name}_labels.json'
+        if not labels_path.exists():
+             raise FileNotFoundError(f"Labels file missing for {model_name}. Run training first.")
+        
+        with open(labels_path, 'r') as fh:
+            labels = json.load(fh)
+            
+        # Load Model
+        pth_path = workspace / 'models' / f'{model_name}.pth'
+        model = ai.model.load(pth_path, num_classes=len(labels))
+        
+        loaded_models[model_name] = {
+            'model': model,
+            'labels': labels
+        }
 
     # Execution Routing
     if not options.get('inspect_path'):
@@ -35,21 +51,20 @@ def check_input():
         audio = sys.stdin.buffer.read()
         if not audio:
             raise ValueError('No standard input!')
-        pprint.pprint(infer_all(models, audio))
+        pprint.pprint(infer_all(loaded_models, audio))
     else:
         inspect_path = pathlib.Path(options['inspect_path'])
         if inspect_path.is_file():
             logging.debug('Running inference with single file')
             for audio in slice_audio(inspect_path):
-                pprint.pprint(infer_all(models, audio))
+                pprint.pprint(infer_all(loaded_models, audio))
 
         elif inspect_path.is_dir():
             logging.debug('Running inference with directory of mkv files')
             for filename in inspect_path.glob('*.*'):
                 logging.info('Reviewing %s', filename)
                 for audio in slice_audio(filename):
-                    pprint.pprint(infer_all(models, audio))
-
+                    pprint.pprint(infer_all(loaded_models, audio))
         else:
             raise OSError(f'Could not find {inspect_path}')
 
@@ -62,18 +77,14 @@ def slice_audio(path):
     if path.match('*.dat'):
         return [ai.model.open_audio_file(path)]
 
-    # TODO: ffmpeg | stdin-to-second | overlapping-to-slices
-    if path.match('*.mkv'):
-        logging.critical('Not Implemented')
-        return []
-
-    logging.warning('Skipping %s (wrong file type)', path)
+    logging.warning('Skipping %s (wrong file type or not implemented)', path)
     return []
 
 
-def infer_all(models, audio_data):
+def infer_all(model_bundle, audio_data):
     '''
-    Run inference on single audio segment using all trained models
+    Run inference on single audio segment using all trained models.
+    Expects model_bundle = {'name': {'model': m, 'labels': [...]}}
     '''
     # Convert raw pcm bytes to numpy array
     if isinstance(audio_data, bytes):
@@ -87,17 +98,35 @@ def infer_all(models, audio_data):
 
     # Inference Step
     results = {}
-    with torch.no_grad():  # Disable gradient calculation for efficiency
-        for model_name, model in models.items():
-            output = model(input_tensor)
-            probability = torch.sigmoid(output).item()
-            is_match = probability > 0.5
-            confidence = probability if is_match else 1 - probability
+    with torch.no_grad():
+        for name, data in model_bundle.items():
+            model = data['model']
+            labels = data['labels']
+            
+            # Forward pass (Logits)
+            logits = model(input_tensor)
+            
+            # Softmax to get probabilities (sum to 1.0)
+            probs = F.softmax(logits, dim=1).squeeze().tolist()
+            
+            # Handle single class case or list conversion
+            if not isinstance(probs, list):
+                probs = [probs]
+                
+            # Create readable dictionary
+            # e.g., {'empty': 0.1, 'barking': 0.9}
+            class_probs = {labels[i]: round(probs[i], 4) for i in range(len(labels))}
+            
+            # Get best match
+            best_idx = torch.argmax(logits, dim=1).item()
+            best_label = labels[best_idx]
+            
+            results[name] = {
+                'match': best_label,
+                'confidence': class_probs[best_label],
+                'distribution': class_probs
+            }
 
-            results[model_name] = {
-                'is_match': bool(is_match),
-                'confidence': float(confidence),
-                }
     return results
 
 

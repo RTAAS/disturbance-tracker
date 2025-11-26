@@ -3,12 +3,6 @@ name: Run Tests
 # This github workflow is used to run tests on all commits to all branches
 ##
 
-on:
-  push
-  #push:
-  #  branches:
-  #    - master
-
 jobs:
 
   docs:

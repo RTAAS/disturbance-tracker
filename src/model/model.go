@@ -5,11 +5,13 @@ import (
 	"dtrack/log"
 
 	// Standard
-	"fmt"
+	"encoding/json"
 	"math"
 	"os"
+	"path/filepath"
+	"strings"
 
-	// 3rd-Party
+	// 3rd-Party (OLD LIBRARY)
 	"github.com/mjibson/go-dsp/fft"
 	"github.com/mjibson/go-dsp/window"
 	"github.com/owulveryck/onnx-go"
@@ -27,9 +29,10 @@ const (
 	INT16_MAX          = 32768.0
 )
 
-// OnnxModel holds only raw bytes for the model to ensure fresh/stateless instance.
+// OnnxModel holds raw bytes AND the class labels.
 type OnnxModel struct {
 	RawBytes []byte
+	Labels   []string
 }
 
 // Not supported by golang
@@ -37,18 +40,37 @@ func Train() {
 	log.Info("Model Training is handled by python -m ai.train")
 }
 
-// Loads the ONNX model once and initializes the Gorgonia backend.
+// Load initializes the model bytes and loads the labels.json file.
 func Load(model_path string) OnnxModel {
 	log.Debug("Loading model from %s", model_path)
 
-	// Read model data from onnx file
+	// 1. Read .onnx file
 	bytes, err := os.ReadFile(model_path)
 	if err != nil {
 		log.Die("could not read ONNX file: %s", err)
 	}
 
-	// Return the loaded model
-	return OnnxModel{RawBytes: bytes}
+	// 2. Read _labels.json file
+	// e.g. whistle.onnx -> whistle_labels.json
+	ext := filepath.Ext(model_path)
+	jsonPath := strings.TrimSuffix(model_path, ext) + "_labels.json"
+
+	labelsBytes, err := os.ReadFile(jsonPath)
+	if err != nil {
+		log.Die("could not read Labels file: %s", err)
+	}
+
+	var labels []string
+	if err := json.Unmarshal(labelsBytes, &labels); err != nil {
+		log.Die("could not parse Labels JSON: %s", err)
+	}
+
+	log.Info("Model loaded with classes: %v", labels)
+
+	return OnnxModel{
+		RawBytes: bytes,
+		Labels:   labels,
+	}
 }
 
 // Prepare takes raw audio bytes and converts them to a ready-to-infer tensor (DSP logic).
@@ -71,79 +93,74 @@ func Prepare(pcmData []byte) (*tensor.Dense, error) {
 		audioFloat64[i] = float64(v)
 	}
 
-	// 3. STFT (Power Spectrogram)
-	// Calculate the actual number of frames that can be calculated (184 in your case)
+	// 3. STFT Calculation
 	n_frames_calculated := (len(audioFloat64)-N_FFT)/HOP_LENGTH + 1
-
-	if n_frames_calculated <= 0 {
-		return nil, fmt.Errorf("audio clip is too short for STFT")
-	}
-
-	n_frames := SPECTROGRAM_FRAMES
 
 	// Check for extreme case where calculated frames exceed expected
 	if n_frames_calculated > SPECTROGRAM_FRAMES {
-		n_frames = n_frames_calculated
 		log.Warn("ML: Calculated frames exceed expected. Using calculated size.")
+		n_frames_calculated = SPECTROGRAM_FRAMES
 	}
 
-	rows_orig := N_FFT/2 + 1 // 1025 rows
-	// Spectrogram array ki final size 1025 x 188 hogi (last 4 columns zero-filled rahenge)
-	spectrogram := make([][]float64, rows_orig)
+	// Calculate bins to keep based on Full Spectrum (Matches Python)
+	bins_to_keep := N_FFT/2 + 1 // 1025 bins
+
+	// Create Spectrogram Matrix
+	spectrogram := make([][]float64, bins_to_keep)
 	for i := range spectrogram {
-		spectrogram[i] = make([]float64, n_frames)
+		spectrogram[i] = make([]float64, SPECTROGRAM_FRAMES)
 	}
 
 	window_func := window.Hann(N_FFT)
 
-	// Loop sirf calculate kiye gaye frames tak chalega (184 frames)
 	for i := 0; i < n_frames_calculated; i++ {
 		start := i * HOP_LENGTH
 		end := start + N_FFT
 		if end > len(audioFloat64) {
 			end = len(audioFloat64)
 		}
-		segment := audioFloat64[start:end]
 
+		segment := audioFloat64[start:end]
 		windowed := make([]float64, N_FFT)
 		for j := 0; j < len(segment); j++ {
 			windowed[j] = segment[j] * window_func[j]
 		}
 
-		// FFT Conversion and Calculation
 		complex_input := make([]complex128, N_FFT)
 		for j := 0; j < N_FFT; j++ {
 			complex_input[j] = complex(windowed[j], 0)
 		}
 		complex_result := fft.FFT(complex_input)
 
-		// Magnitude Square (Power Spectrogram)
-		for j := 0; j < rows_orig; j++ {
-			spectrogram[j][i] = real(complex_result[j])*real(complex_result[j]) + imag(complex_result[j])*imag(complex_result[j])
+		// Magnitude Square
+		for j := 0; j < bins_to_keep; j++ {
+			val := complex_result[j]
+			magSq := real(val)*real(val) + imag(val)*imag(val)
+			spectrogram[j][i] = magSq
 		}
 	}
 
-	// 4. Rescale/Resize
-	power_spec_1D := make([]float64, rows_orig*n_frames) // Final size 1025 * 188
-	for i := 0; i < rows_orig; i++ {
-		copy(power_spec_1D[i*n_frames:(i+1)*n_frames], spectrogram[i])
+	// 4. Flatten & Resize
+	power_spec_1D := make([]float64, bins_to_keep*SPECTROGRAM_FRAMES)
+	for i := 0; i < bins_to_keep; i++ {
+		copy(power_spec_1D[i*SPECTROGRAM_FRAMES:(i+1)*SPECTROGRAM_FRAMES], spectrogram[i])
 	}
 
-	rescaled_spec := resizeRows(power_spec_1D, rows_orig, n_frames, N_MELS)
-	rows := N_MELS
+	// Resize using Average Pooling
+	rescaled_spec := resizeRowsAvg(power_spec_1D, bins_to_keep, SPECTROGRAM_FRAMES, N_MELS)
 
-	// 5. Power to DB & Min-Max Normalize
-	mel_spec_db := powerToDb(rescaled_spec, rows, n_frames)
+	// 5. Power to DB & Normalize
+	mel_spec_db := powerToDb(rescaled_spec)
 	img_normalized := minMaxNormalize(mel_spec_db)
 
-	// 6. Stack Channels & Convert to Tensor
+	// 6. Stack Channels
 	size := len(img_normalized)
 	img3Channel := make([]float32, size*3)
 	copy(img3Channel[:size], img_normalized)
 	copy(img3Channel[size:size*2], img_normalized)
 	copy(img3Channel[size*2:size*3], img_normalized)
 
-	shape := []int{1, 3, N_MELS, n_frames}
+	shape := []int{1, 3, N_MELS, SPECTROGRAM_FRAMES}
 
 	inputTensor := tensor.New(
 		tensor.Of(tensor.Float32),
@@ -154,41 +171,68 @@ func Prepare(pcmData []byte) (*tensor.Dense, error) {
 	return inputTensor, nil
 }
 
-// Infer runs the prepared audio tensor through the ONNX model.
-func Infer(inferModel OnnxModel, preparedAudio *tensor.Dense) float64 {
-	// 1. Create a new backend for this specific inference run
-	// Note: Re-use will merge old values, resulting in confidence build-up issues.
+// Infer runs the model and returns a MAP of probabilities (Multi-Class).
+// Returns: map["barking"] = 0.8, map["empty"] = 0.2
+func Infer(inferModel OnnxModel, preparedAudio *tensor.Dense) map[string]float64 {
+	// 1. Create Backend
 	backend := gorgonnx.NewGraph()
 	onnxModel := onnx.NewModel(backend)
 
-	// 2. Unmarshal the model from the pre-loaded raw bytes
+	// 2. Unmarshal
 	if err := onnxModel.UnmarshalBinary(inferModel.RawBytes); err != nil {
-		log.Die("could not unmarshal ONNX model during inference: %s", err)
+		log.Die("could not unmarshal ONNX model: %s", err)
 	}
 
-	// 3. Set Input and Run Backend
+	// 3. Run
 	onnxModel.SetInput(0, tensor.Tensor(preparedAudio))
 	if err := backend.Run(); err != nil {
-		log.Die("ML: Inference failed on Gorgonia backend: %v", err)
+		log.Die("Inference failed: %v", err)
 	}
 
-	// 4. Get Output and Post-Process (Sigmoid)
+	// 4. Get Output
 	outputTensors, _ := onnxModel.GetOutputTensors()
 	outputDense, ok := outputTensors[0].(*tensor.Dense)
 	if !ok {
-		log.Die("ML: Output tensor is not a *tensor.Dense type.")
+		log.Die("Output tensor is not a *tensor.Dense type.")
 	}
 
-	backingSlice := outputDense.Data()
-	floatSlice, ok := backingSlice.([]float32)
-	if !ok || len(floatSlice) == 0 {
-		log.Die("ML: Output data corrupted or empty.")
+	// 5. Convert Logits to Probabilities (Softmax)
+	floatSlice := outputDense.Data().([]float32) // Gorgonia usually returns float32
+	logits := make([]float64, len(floatSlice))
+	for i, v := range floatSlice {
+		logits[i] = float64(v)
 	}
 
-	logitFloat := float64(floatSlice[0])
-	probability := 1.0 / (1.0 + math.Exp(-logitFloat))
+	probs := softmax(logits)
 
-	return probability
+	// 6. Map to Labels
+	results := make(map[string]float64)
+	for i, label := range inferModel.Labels {
+		if i < len(probs) {
+			results[label] = probs[i]
+		}
+	}
+
+	return results
+}
+
+func softmax(logits []float64) []float64 {
+	max := -math.MaxFloat64
+	for _, v := range logits {
+		if v > max {
+			max = v
+		}
+	}
+	sum := 0.0
+	exps := make([]float64, len(logits))
+	for i, v := range logits {
+		exps[i] = math.Exp(v - max)
+		sum += exps[i]
+	}
+	for i := range exps {
+		exps[i] /= sum
+	}
+	return exps
 }
 
 // normalizeAudio converts raw 16-bit PCM bytes into a normalized float32 slice.
@@ -203,7 +247,7 @@ func normalizeAudio(pcmData []byte) []float32 {
 }
 
 // powerToDb converts a power spectrogram to decibels.
-func powerToDb(spec []float64, rows, cols int) []float64 {
+func powerToDb(spec []float64) []float64 {
 	dbSpec := make([]float64, len(spec))
 	var maxPower float64 = 0.0
 	for _, v := range spec {
@@ -220,7 +264,6 @@ func powerToDb(spec []float64, rows, cols int) []float64 {
 	return dbSpec
 }
 
-// minMaxNormalize scales the decibel spectrogram to a 0-1 range.
 func minMaxNormalize(dbSpec []float64) []float32 {
 	var minVal float64 = math.MaxFloat64
 	var maxVal float64 = -math.MaxFloat64
@@ -244,15 +287,15 @@ func minMaxNormalize(dbSpec []float64) []float32 {
 	return img
 }
 
-// resizeRows: Resizes the spectrogram rows (using Average Pooling Hack)
-func resizeRows(input []float64, originalRows, originalCols, targetRows int) []float64 {
+// resizeRowsAvg: Reverted to Average Pooling
+func resizeRowsAvg(input []float64, originalRows, cols, targetRows int) []float64 {
 	if originalRows == targetRows {
 		return input
 	}
-	output := make([]float64, targetRows*originalCols)
+	output := make([]float64, targetRows*cols)
 	ratio := float64(originalRows) / float64(targetRows)
 
-	for c := 0; c < originalCols; c++ {
+	for c := 0; c < cols; c++ {
 		for r_target := 0; r_target < targetRows; r_target++ {
 			startRow := int(math.Floor(float64(r_target) * ratio))
 			endRow := int(math.Ceil(float64(r_target+1) * ratio))
@@ -263,11 +306,11 @@ func resizeRows(input []float64, originalRows, originalCols, targetRows int) []f
 			sum := 0.0
 			count := 0
 			for r_orig := startRow; r_orig < endRow; r_orig++ {
-				sum += input[r_orig*originalCols+c]
+				sum += input[r_orig*cols+c]
 				count++
 			}
 			if count > 0 {
-				output[r_target*originalCols+c] = sum / float64(count)
+				output[r_target*cols+c] = sum / float64(count)
 			}
 		}
 	}

@@ -1,15 +1,16 @@
 '''
 Disturbance Tracker - Model Trainer
 
-Handles data loading, augmentation, training, validation, and reporting
-for training a PyTorch-based neural network to classify audio clips.
+Uses directory structure: tags/<model_name>/<class>/<audio_segment>.dat
 '''
 import logging
 import pathlib
+import json
 import audiomentations
-import sklearn
+import sklearn.model_selection
 import torch
 import tqdm
+import sys
 
 # DTrack
 import ai.model
@@ -21,14 +22,8 @@ class AudioDataset(torch.utils.data.Dataset):
     Custom PyTorch Dataset for loading and processing audio files.
     '''
     def __init__(self, file_paths, labels, augmentations=None):
-        '''
-        Initializes the dataset.
-        '''
-        # List of paths to the audio files
         self.file_paths = file_paths
-        # Corresponding list of labels (0 or 1)
         self.labels = labels
-        # Audiomentations Compose object
         self.augmentations = augmentations
 
     def __len__(self):
@@ -37,19 +32,19 @@ class AudioDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         filepath = self.file_paths[idx]
         label = self.labels[idx]
-
-        # Load audio using the function from model.py
         audio = ai.model.open_audio_file(filepath)
 
-        # Apply augmentations if specified
+        # Apply Augmentations
         if self.augmentations:
-            audio = self.augmentations(
-                    samples=audio, sample_rate=ai.model.SAMPLE_RATE)
+            try:
+                audio = self.augmentations(
+                        samples=audio,
+                        sample_rate=ai.model.SAMPLE_RATE)
+            except Exception:
+                pass
 
-        # Convert audio to a spectrogram
         spectrogram = ai.model.audio_to_spectrogram(audio)
-
-        return spectrogram, torch.tensor(label, dtype=torch.float32)
+        return spectrogram, torch.tensor(label, dtype=torch.long)
 
 
 def train_all():
@@ -59,69 +54,102 @@ def train_all():
     Train all configured models using tagged audio clips.
     '''
     options = ai.options.bootstrap()
-    models_dir = pathlib.Path(options['workspace']) / 'models'
+    workspace = pathlib.Path(options['workspace'])
+    models_dir = workspace / 'models'
 
     for model_name in options['inspect_models']:
-        logging.info('Begin training: %s', model_name)
+        logging.debug('Begin training: %s', model_name)
         try:
-            train_model(model_name, options)
+            num_classes = train_model(model_name, options)
             logging.info('Finished training %s', model_name)
+            ai.model.convert(
+                models_dir / f'{model_name}.pth',
+                models_dir / f'{model_name}.onnx',
+                num_classes
+            )
+            logging.info('MODEL PREPARED: %s', model_name)
         except KeyboardInterrupt:
             logging.info('Received Ctrl+C; Training stopped')
-
-        ai.model.convert(
-                models_dir / f'{model_name}.pth',
-                models_dir / f'{model_name}.onnx')
-        logging.info('MODEL PREPARED: %s', model_name)
+        except Exception as e:
+            logging.error('Failed to train %s: %s', model_name, e)
+            raise e
 
 
 def train_model(model_name, options):
     '''
     Conducts the full training and validation process for a model.
+
+    Uses training data from workspace/tags/<model_name>/<category>,
+    produces <workspace>/models/<model_name>.pth,
+    returns total number of identified <categories>.
     '''
     workspace = pathlib.Path(options['workspace'])
     models_dir = workspace / 'models'
-    tags_dir = workspace / 'tags'
-    match_dir = tags_dir / model_name
-    empty_dir = tags_dir / 'empty'
-    if not match_dir.exists() or not empty_dir.exists():
-        raise OSError(f'Missing data directories for {model_name}.')
+    data_dir = workspace / 'tags' / model_name
 
-    # Prepare Dataset
-    logging.debug('Loading and preparing dataset')
-    match_files = list(match_dir.glob('*.dat'))
-    empty_files = list(empty_dir.glob('*.dat'))
-    if not match_files or not empty_files:
-        raise OSError('Data directories are missing tagged audio data.')
+    # Verify tags/<model_name>/<data> exists
+    if not data_dir.exists():
+        raise OSError(f'Data directory not found for model: {data_dir}')
+    if not (data_dir / 'empty').exists():
+        raise OSError(f'No "null" data found: {data_dir}/empty')
 
-    all_files = match_files + empty_files
-    # labels = * len(match_files) + * len(empty_files)
-    labels = [1] * len(match_files) + [0] * len(empty_files)
+    # Identify all classes from existing folder structure
+    class_folders = sorted([d for d in data_dir.iterdir() if d.is_dir()])
+    if len(class_folders) < 2:
+        raise ValueError('Need at least 2 class folders.')
+
+    classes = [d.name for d in class_folders]
+    class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
+    logging.info('Detected categories for %s: %s', model_name, classes)
+
+    models_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save Labels Map
+    with open(models_dir / f'{model_name}_labels.json', 'w') as fh:
+        json.dump(classes, fh)
+
+    all_files = []
+    all_labels = []
+    class_counts = []
+
+    for cls_name in classes:
+        folder = data_dir / cls_name
+        files = list(folder.glob('*.dat'))
+        count = len(files)
+        logging.debug('Class "%s": %d samples', cls_name, count)
+        class_counts.append(count)
+        all_files.extend(files)
+        all_labels.extend([class_to_idx[cls_name]] * count)
+
+    if not all_files:
+        raise OSError('No .dat files found.')
+
+    # Weights
+    total_samples = sum(class_counts)
+    class_weights = [total_samples / (len(classes) * c) for c in class_counts]
+    logging.debug('Class Weights: %s', class_weights)
 
     train_files, val_files, train_labels, val_labels = \
         sklearn.model_selection.train_test_split(
-                all_files, labels, test_size=0.2,
-                random_state=42, stratify=labels)
-    logging.info(
-            'Training samples: %d Validation samples: %d',
-            len(train_files), len(val_files))
+                all_files, all_labels, test_size=0.2,
+                random_state=42, stratify=all_labels)
 
-    # 2. Define Augmentations and Create DataLoaders
+    # Augmentations
     train_dataset = AudioDataset(
             train_files,
             train_labels,
             augmentations=audiomentations.Compose([
                 audiomentations.AddGaussianNoise(
-                    min_amplitude=0.001, max_amplitude=0.015, p=0.5),
+                    min_amplitude=0.001, max_amplitude=0.02, p=0.5),
                 audiomentations.TimeStretch(
-                    min_rate=0.8, max_rate=1.25, p=0.5),
+                    min_rate=0.8, max_rate=1.2, p=0.5),
                 audiomentations.PitchShift(
                     min_semitones=-4, max_semitones=4, p=0.5),
-                ]))
-    val_dataset = AudioDataset(
-            val_files,
-            val_labels,
-            augmentations=None)
+                audiomentations.Shift(
+                    min_shift=-0.2, max_shift=0.2, p=0.5),
+            ]))
+
+    val_dataset = AudioDataset(val_files, val_labels, augmentations=None)
 
     train_loader = torch.utils.data.DataLoader(
             train_dataset,
@@ -132,90 +160,83 @@ def train_model(model_name, options):
             batch_size=options['train_batch_size'],
             shuffle=False)
 
-    # 3. Initialize Model, Loss, and Optimizer
-    # TODO: Load model if one exists
-    logging.debug('Creating %s model', model_name)
+    num_classes = len(classes)
     dev = ai.model.CUDA_CPU
-    model = ai.model.NoiseDetector().to(dev)
-    criterion = torch.nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.AdamW(
-        model.parameters(), lr=options['train_learning_rate'])
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, 'min', patience=5)
+    model = ai.model.NoiseDetector(num_classes=num_classes).to(dev)
 
-    # 4. Training Loop
+    weights_tensor = torch.tensor(class_weights, dtype=torch.float32).to(dev)
+
+    # Label Smoothing + Weights
+    criterion = torch.nn.CrossEntropyLoss(
+            weight=weights_tensor, label_smoothing=0.1)
+
+    optimizer = torch.optim.AdamW(
+            model.parameters(),
+            lr=options['train_learning_rate'], weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+            optimizer, T_0=10, T_mult=2)
+
     best_val_loss = float('inf')
     epochs_worse = 0
-    history = {
-            'train_loss': [],
-            'val_loss': [],
-            'train_acc': [],
-            'val_acc': [],
-            }
-    for epoch in range(options['train_epochs']):
 
-        # Training Phase
+    for epoch in range(options['train_epochs']):
         model.train()
         train_loss, train_correct = 0, 0
+
         for inputs, labels in tqdm.tqdm(
-                train_loader, desc=f'Iteration {epoch} [Train]', leave=False):
-            inputs, labels = inputs.to(dev), labels.to(dev).unsqueeze(1)
+                train_loader, desc=f'Epoch {epoch} [Train]',
+                leave=False, file=sys.stdout):
+            inputs, labels = inputs.to(dev), labels.to(dev)
+
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
+
             train_loss += loss.item()
-            preds = torch.sigmoid(outputs) > 0.5
+            _, preds = torch.max(outputs, 1)
             train_correct += (preds == labels).sum().item()
 
-        # Validation Phase
         model.eval()
         val_loss, val_correct = 0, 0
         with torch.no_grad():
             for inputs, labels in tqdm.tqdm(
-                    val_loader,
-                    desc=f'Iteration {epoch} [Check]',
-                    leave=False):
-                inputs, labels = inputs.to(dev), labels.to(dev).unsqueeze(1)
+                    val_loader, desc=f'Epoch {epoch} [Check]',
+                    leave=False, file=sys.stdout):
+                inputs, labels = inputs.to(dev), labels.to(dev)
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
                 val_loss += loss.item()
-                preds = torch.sigmoid(outputs) > 0.5
+                _, preds = torch.max(outputs, 1)
                 val_correct += (preds == labels).sum().item()
 
-        # Log Results
         avg_train_loss = train_loss / len(train_loader)
         avg_val_loss = val_loss / len(val_loader)
         train_accuracy = 100 * train_correct / len(train_dataset)
         val_accuracy = 100 * val_correct / len(val_dataset)
 
-        history['train_loss'].append(avg_train_loss)
-        history['val_loss'].append(avg_val_loss)
-        history['train_acc'].append(train_accuracy)
-        history['val_acc'].append(val_accuracy)
         logging.debug(
-            'Iteration %d: Train Loss: %.4f, Acc: %.2f%% | '
-            'Val Loss: %.4f, Acc: %.2f%%',
+            '#%d: Train Loss: %.4f, Acc: %.2f%% | Val Loss: %.4f, Acc: %.2f%%',
             epoch, avg_train_loss, train_accuracy, avg_val_loss, val_accuracy)
 
-        scheduler.step(avg_val_loss)
+        scheduler.step()
 
-        # Save best iteration; exit if limits reached
         if avg_val_loss < best_val_loss:
-            logging.info('Model improved; saving iteration %s', epoch)
+            logging.info(
+                    'Model #%d improved (Loss: %.4f); Saving',
+                    epoch, avg_val_loss)
             ai.model.save(model, models_dir / f'{model_name}.pth')
             best_val_loss = avg_val_loss
             epochs_worse = 0
         else:
-            logging.debug('Training did not improve (%d)', epochs_worse + 1)
             epochs_worse += 1
 
-        if epochs_worse >= options['train_patience']:
-            logging.info('Training patience exhausted without improvement')
-            return
+        if epochs_worse >= 30:
+            logging.info('Training patience exhausted')
+            return num_classes
 
-    logging.info('Training epochs exhausted; check quality of audio samples!')
+    return num_classes
 
 
 if __name__ == '__main__':

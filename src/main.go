@@ -37,7 +37,6 @@ func main() {
 		"train":   model.Train,
 	}
 	action_map[*app_action]()
-
 }
 
 // Post-processing

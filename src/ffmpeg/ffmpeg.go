@@ -14,12 +14,11 @@ import (
 	"time"
 )
 
-// One-second segment of audio from pcm_s16le (segment_size)
-//
-//	Bytes Per Second = Sample Rate * Channels * (Bits Per Sample / 8)
-//	96000            = -ac 48000   * -c 1     * (16/8)
-const BytesPerSecond int = 96000
-const SampleRate int = 48000
+// One-second piece of audio from pcm_s16le:
+//    Bytes Per Second   = Sample Rate * Channels * (Bits Per Sample / 8)
+//    96000              = -ac 48000   * -c 1     * (16/8)
+const SampleRate     int = 48000
+const BytesPerSecond int = SampleRate * 2 // * 1 * (2)
 
 // MKV Filename:  YYYY-MM-DD_HHmmss
 const SaveName = "2006-01-02_150405.mkv"

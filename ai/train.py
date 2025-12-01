@@ -34,6 +34,8 @@ class AudioDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         filepath = self.file_paths[idx]
         label = self.labels[idx]
+
+        # Load (and prepare) audio
         audio = ai.model.open_audio_file(filepath)
 
         # Apply Augmentations
@@ -42,6 +44,7 @@ class AudioDataset(torch.utils.data.Dataset):
                     samples=audio,
                     sample_rate=ai.model.SAMPLE_RATE)
 
+        # Return Label as LongTensor for CrossEntropyLoss
         spectrogram = ai.model.audio_to_spectrogram(audio)
         return spectrogram, torch.tensor(label, dtype=torch.long)
 
@@ -59,8 +62,11 @@ def train_all():
     for model_name in options['inspect_models']:
         logging.debug('Begin training: %s', model_name)
         try:
+            # Train (and get class count)
             num_classes = train_model(model_name, options)
             logging.info('Finished training %s', model_name)
+
+            # Export to ONNX format
             ai.model.convert(
                 models_dir / f'{model_name}.pth',
                 models_dir / f'{model_name}.onnx',
@@ -92,23 +98,26 @@ def train_model(model_name, options):
     if not (data_dir / 'empty').exists():
         raise OSError(f'No "null" data found: {data_dir}/empty')
 
-    # Identify all classes from existing folder structure
+    # 1. Identify all classes from existing folder structure
     class_folders = sorted([d for d in data_dir.iterdir() if d.is_dir()])
     if len(class_folders) < 2:
         raise ValueError('Need at least 2 class folders.')
 
+    # Create mapping: Name -> Index
     classes = [d.name for d in class_folders]
     class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
     logging.info('Detected categories for %s: %s', model_name, classes)
 
+    # Ensure models directory exists
     models_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save Labels Map
+    # Labels Map: Gather files and Calculate Counts for Balancing
     with open(
             models_dir / f'{model_name}_labels.json', 'w',
             encoding='utf-8') as fh:
         json.dump(classes, fh)
 
+    # Gather files and Calculate Counts for Balancing
     all_files = []
     all_labels = []
     class_counts = []
@@ -125,17 +134,19 @@ def train_model(model_name, options):
     if not all_files:
         raise OSError('No .dat files found.')
 
-    # Weights
+    # Calculate Class Weights for Imbalance
+    # Formula: Total / (NumClasses * ClassCount)
     total_samples = sum(class_counts)
     class_weights = [total_samples / (len(classes) * c) for c in class_counts]
     logging.debug('Class Weights: %s', class_weights)
 
+    # Weights (Stratified Split)
     train_files, val_files, train_labels, val_labels = \
         sklearn.model_selection.train_test_split(
                 all_files, all_labels, test_size=0.2,
                 random_state=42, stratify=all_labels)
 
-    # Augmentations
+    # 2. Augmentations and Loaders
     train_dataset = AudioDataset(
             train_files,
             train_labels,
@@ -159,29 +170,31 @@ def train_model(model_name, options):
             batch_size=options['train_batch_size'],
             shuffle=False)
 
+    # 3. Initialize Model
     num_classes = len(classes)
     dev = ai.model.CUDA_CPU
     model = ai.model.NoiseDetector(num_classes=num_classes).to(dev)
 
     weights_tensor = torch.tensor(class_weights, dtype=torch.float32).to(dev)
 
-    # Label Smoothing + Weights
+    # Label Smoothing adds random error to prevent over-fitting via human error
     criterion = torch.nn.CrossEntropyLoss(
-            weight=weights_tensor, label_smoothing=0.0)
+            weight=weights_tensor, label_smoothing=0.05)
 
     optimizer = torch.optim.AdamW(
             model.parameters(),
             lr=options['train_learning_rate'], weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-            optimizer, T_0=10, T_mult=2)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, 'min', patience=5)
 
+    # 4. Training Loop
     best_val_loss = float('inf')
     epochs_worse = 0
-
     for epoch in range(options['train_epochs']):
+
+        # Training Phase
         model.train()
         train_loss, train_correct = 0, 0
-
         for inputs, labels in tqdm.tqdm(
                 train_loader, desc=f'Epoch {epoch} [Train]',
                 leave=False, file=sys.stdout):
@@ -194,9 +207,12 @@ def train_model(model_name, options):
             optimizer.step()
 
             train_loss += loss.item()
+
+            # Accuracy: Max argument of Softmax
             _, preds = torch.max(outputs, 1)
             train_correct += (preds == labels).sum().item()
 
+        # Validation Phase
         model.eval()
         val_loss, val_correct = 0, 0
         with torch.no_grad():
@@ -210,16 +226,19 @@ def train_model(model_name, options):
                 _, preds = torch.max(outputs, 1)
                 val_correct += (preds == labels).sum().item()
 
+        # Log Results (Using logging.info to show in file)
         avg_train_loss = train_loss / len(train_loader)
         avg_val_loss = val_loss / len(val_loader)
         train_accuracy = 100 * train_correct / len(train_dataset)
         val_accuracy = 100 * val_correct / len(val_dataset)
-
         logging.debug(
-            '#%d: Train Loss: %.4f, Acc: %.2f%% | Val Loss: %.4f, Acc: %.2f%%',
-            epoch, avg_train_loss, train_accuracy, avg_val_loss, val_accuracy)
+                '#%d: Train Loss: %.4f, Acc: %.2f%% |'
+                ' Val Loss: %.4f, Acc: %.2f%%',
+                epoch, avg_train_loss, train_accuracy,
+                avg_val_loss, val_accuracy)
 
-        scheduler.step()
+        # Adjust learning rate if plateau was hit
+        scheduler.step(avg_val_loss)
 
         if avg_val_loss < best_val_loss:
             logging.info(

@@ -45,7 +45,7 @@ func init() {
 	// Convert Hz to FFT Bin Indices
 	binPoints := make([]int, len(melPoints))
 	for i, freq := range melPoints {
-		binPoints[i] = int(math.Floor((Nfft + 1) * freq / float64(SampleRate)))
+		binPoints[i] = int(math.Floor((Nfft + 1) * freq / float64(ffmpeg.SampleRate)))
 	}
 
 	// Generate Weights and Bounds

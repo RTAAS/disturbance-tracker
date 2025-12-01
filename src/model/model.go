@@ -228,19 +228,25 @@ func Infer(inferModel OnnxModel, preparedAudio *tensor.Dense) map[string]float64
 	return results
 }
 
+// Convert logits to probabilities that sum to 1
 func softmax(logits []float64) []float64 {
+	// Find max logit to prevent overflow in exp()
 	max := -math.MaxFloat64
 	for _, v := range logits {
 		if v > max {
 			max = v
 		}
 	}
+
+	// exp(x_i - max) for numerical stability
 	sum := 0.0
 	exps := make([]float64, len(logits))
 	for i, v := range logits {
 		exps[i] = math.Exp(v - max)
 		sum += exps[i]
 	}
+
+	// Normalize: exp(x_i - max) / sum(exp(x_j - max))
 	for i := range exps {
 		exps[i] /= sum
 	}

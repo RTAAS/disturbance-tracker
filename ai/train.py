@@ -152,11 +152,12 @@ def train_model(model_name, options):
             train_labels,
             augmentations=audiomentations.Compose([
                 audiomentations.AddGaussianNoise(
-                    min_amplitude=0.001, max_amplitude=0.02, p=0.5),
+                    min_amplitude=0.001, max_amplitude=0.02, p=0.2),
                 audiomentations.TimeStretch(
-                    min_rate=0.8, max_rate=1.2, p=0.5),
+                    min_rate=0.95, max_rate=1.05,
+                    leave_length_unchanged=True, p=0.2),
                 audiomentations.Shift(
-                    min_shift=-0.2, max_shift=0.2, p=0.5),
+                    min_shift=-0.2, max_shift=0.2, p=0.2),
             ]))
 
     val_dataset = AudioDataset(val_files, val_labels, augmentations=None)

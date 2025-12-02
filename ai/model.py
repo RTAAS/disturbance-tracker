@@ -103,7 +103,7 @@ class NoiseDetector(nn.Module):
         )
 
         self.classifier = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
+            nn.AdaptiveMaxPool2d(1),
             nn.Flatten(),
             nn.Dropout(p=0.3),
             nn.Linear(1024, num_classes)

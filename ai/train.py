@@ -10,6 +10,8 @@ import sys
 
 # 3rd-Party
 import audiomentations
+import numpy as np
+import sklearn.metrics
 import sklearn.model_selection
 import torch
 import tqdm
@@ -61,23 +63,23 @@ def train_all():
 
     for model_name in options['inspect_models']:
         logging.debug('Begin training: %s', model_name)
-        try:
-            # Train (and get class count)
-            num_classes = train_model(model_name, options)
-            logging.info('Finished training %s', model_name)
 
-            # Export to ONNX format
-            ai.model.convert(
-                models_dir / f'{model_name}.pth',
-                models_dir / f'{model_name}.onnx',
-                num_classes
-            )
-            logging.info('MODEL PREPARED: %s', model_name)
+        # Train (and get class count)
+        try:
+            num_classes = train_model(model_name, options)
         except KeyboardInterrupt:
             logging.info('Received Ctrl+C; Training stopped')
-        except Exception as e:
-            logging.error('Failed to train %s: %s', model_name, e)
-            raise e
+
+        # Run validation
+        build_report(model_name, options)
+
+        # Export to ONNX format
+        ai.model.convert(
+            models_dir / f'{model_name}.pth',
+            models_dir / f'{model_name}.onnx',
+            num_classes)
+
+        logging.info('Finished training: %s', model_name)
 
 
 def train_model(model_name, options):
@@ -113,7 +115,7 @@ def train_model(model_name, options):
 
     # Labels Map: Gather files and Calculate Counts for Balancing
     with open(
-            models_dir / f'{model_name}_labels.json', 'w',
+            models_dir / f'{model_name}.labels', 'w',
             encoding='utf-8') as fh:
         json.dump(classes, fh)
 
@@ -186,7 +188,7 @@ def train_model(model_name, options):
             model.parameters(),
             lr=options['train_learning_rate'], weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, 'min', patience=5)
+        optimizer, 'min', patience=4)
 
     # 4. Training Loop
     best_val_loss = float('inf')
@@ -215,7 +217,8 @@ def train_model(model_name, options):
 
         # Validation Phase
         model.eval()
-        val_loss, val_correct = 0, 0
+        val_loss = 0
+        val_correct = 0
         with torch.no_grad():
             for inputs, labels in tqdm.tqdm(
                     val_loader, desc=f'Epoch {epoch} [Check]',
@@ -255,8 +258,81 @@ def train_model(model_name, options):
             logging.info('Training patience exhausted.')
             return num_classes
 
-    logging.info('Training epochs exhausted; check quality of audio samples!')
+    logging.info('Training epochs exhausted.')
     return num_classes
+
+
+def build_report(model_name, options):
+    '''
+    Load the trained model, run inference on validation data,
+    produce a confusion matrix, and save report.
+    '''
+    workspace = pathlib.Path(options['workspace'])
+    models_dir = workspace / 'models'
+    data_dir = workspace / 'tags' / model_name
+
+    # Load labels
+    with open(models_dir / f'{model_name}.labels', 'r') as f:
+        classes = json.load(f)
+    class_to_idx = {c: i for i, c in enumerate(classes)}
+
+    # Load model
+    model = ai.model.load(models_dir / f'{model_name}.pth', len(classes))
+
+    # Gather validation files and labels
+    all_files = []
+    all_labels = []
+    for cls in classes:
+        files = list((data_dir / cls).glob('*.dat'))
+        all_files.extend(files)
+        all_labels.extend([class_to_idx[cls]] * len(files))
+    if not all_files:
+        print(f'No validation data found for {model_name}.')
+        return
+
+    # Prepare dataset
+    val_dataset = AudioDataset(all_files, all_labels, augmentations=None)
+    val_loader = torch.utils.data.DataLoader(
+            val_dataset,
+            batch_size=options['train_batch_size'],
+            shuffle=False)
+
+    # Collect predictions
+    preds = []
+    truths = []
+    with torch.no_grad():
+        for inputs, labels in val_loader:
+            inputs = inputs.to(ai.model.CUDA_CPU)
+            labels = labels.to(ai.model.CUDA_CPU)
+            outputs = model(inputs)
+            pred = torch.argmax(outputs, dim=1)
+            preds.extend(pred.cpu().numpy())
+            truths.extend(labels.cpu().numpy())
+
+    # Generate confusion matrix
+    cm = sklearn.metrics.confusion_matrix(
+            truths, preds, labels=range(len(classes)))
+
+    # Save report showing model accuracy
+    with open(
+            models_dir / f'{model_name}_report.txt',
+            'w', encoding='utf-8') as fh:
+        fh.write(f'Final report for model: {model_name}\n')
+
+        # Save confusion matrix
+        fh.write('\n= CONFUSION MATRIX =\n\n')
+        fh.write('Predicted: \\ Actual:  ')
+        fh.write(''.join([f'{c:<14}' for c in classes]) + '\n')
+        for i, row in enumerate(cm):
+            fh.write(f'  {classes[i]:<20}')
+            fh.write(''.join([f'{val:<14}' for val in row]) + '\n')
+
+        # Find misclassified files
+        fh.write('\n= MISCLASSIFIED FILES =\n\n')
+        for i, (file, e, p) in enumerate(zip(all_files, truths, preds)):
+            if e != p:
+                fh.write('  {}  Expected: {}  Predicted: {}\n'.format(
+                    file.name, classes[e], classes[p]))
 
 
 if __name__ == '__main__':

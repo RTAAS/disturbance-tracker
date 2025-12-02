@@ -30,7 +30,7 @@ MEL_BASIS = librosa.filters.mel(
         sr=SAMPLE_RATE,
         n_fft=N_FFT,
         n_mels=N_MELS,
-        fmax=24000.0,
+        fmax=float(SAMPLE_RATE / 2),
         fmin=0.0)
 
 # Use CUDA device if available, or else CPU

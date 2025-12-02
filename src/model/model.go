@@ -60,9 +60,9 @@ func Load(model_path string) OnnxModel {
 		log.Die("could not read ONNX file: %s", err)
 	}
 
-	// Read _labels.json file (e.g. whistle.onnx -> whistle_labels.json)
+	// Read json labels file (e.g. whistle.onnx -> whistle.labels)
 	ext := filepath.Ext(model_path)
-	jsonPath := strings.TrimSuffix(model_path, ext) + "_labels.json"
+	jsonPath := strings.TrimSuffix(model_path, ext) + ".labels"
 
 	labelsBytes, err := os.ReadFile(jsonPath)
 	if err != nil {

@@ -31,7 +31,7 @@ def check_input():
     loaded_models = {}
     for model_name in options['inspect_models']:
         # Load Labels
-        labels_path = workspace / 'models' / f'{model_name}_labels.json'
+        labels_path = workspace / 'models' / f'{model_name}.labels'
         if not labels_path.exists():
             raise FileNotFoundError(f'Labels missing for {model_name}')
 

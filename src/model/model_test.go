@@ -58,7 +58,7 @@ func TestMultiClass_Inference(t *testing.T) {
 
 	// Determine expected JSON path
 	ext := filepath.Ext(onnxPath)
-	jsonPath := strings.TrimSuffix(onnxPath, ext) + "_labels.json"
+	jsonPath := strings.TrimSuffix(onnxPath, ext) + ".labels"
 
 	// 1. Pre-Check: Ensure files exist to avoid log.Die() crash
 	if _, err := os.Stat(onnxPath); os.IsNotExist(err) {
